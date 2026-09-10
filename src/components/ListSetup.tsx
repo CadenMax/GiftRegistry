@@ -4,7 +4,7 @@ import type { FormEvent } from "react";
 type ListSetupProps = {
   listName: string;
   occasion: string;
-  mode?: "create" | "edit";
+  mode?: "create" | "edit" | "duplicate";
   onListNameChange: (value: string) => void;
   onOccasionChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -39,8 +39,8 @@ export function ListSetup({
           <p>Set a name and optional occasion. Add gifts next.</p>
         </div>
         <form className="auth-card" onSubmit={onSubmit}>
-          <h2>{mode === "edit" ? "Edit list details" : "Create a new list"}</h2>
-          <p>{mode === "edit" ? "Change the name or occasion without touching the gifts." : "Give this list a name to get started."}</p>
+          <h2>{mode === "edit" ? "Edit list details" : mode === "duplicate" ? "Duplicate list" : "Create a new list"}</h2>
+          <p>{mode === "edit" ? "Change the name or occasion without touching the gifts." : mode === "duplicate" ? "Make a copy with its own name, occasion, and access code." : "Give this list a name to get started."}</p>
           <label>
             List name
             <input autoFocus required onChange={(event) => onListNameChange(event.target.value)} placeholder="e.g. Alex's birthday" value={listName} />
@@ -52,7 +52,7 @@ export function ListSetup({
           <div className="setup-actions">
             {mode === "edit" && onCancel ? <button className="text-button" onClick={onCancel} type="button">Cancel</button> : null}
             <button className="primary-button" type="submit">
-              {mode === "edit" ? "Save details" : "Create list"} <ArrowRight size={17} />
+              {mode === "edit" ? "Save details" : mode === "duplicate" ? "Duplicate list" : "Create list"} <ArrowRight size={17} />
             </button>
           </div>
         </form>

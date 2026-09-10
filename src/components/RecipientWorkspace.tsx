@@ -3,16 +3,17 @@ import {
     BookOpen,
     Check,
     ChevronDown,
+    Copy,
     Gift as GiftIcon,
     Link as LinkIcon,
     Pencil,
     Plus,
-    Search,
     Share2,
     Trash2,
 } from "lucide-react";
 import type { ChangeEvent, CSSProperties, Dispatch, FormEvent, SetStateAction } from "react";
-import type { Gift, RecipientView, Registry, SortOption } from "../types";
+import { GiftFilterControls } from "./GiftFilterControls";
+import type { Gift, GiftFilters, RecipientView, Registry } from "../types";
 
 type GiftDraft = Omit<Gift, "id" | "addedAt">;
 
@@ -31,8 +32,7 @@ type RecipientWorkspaceProps = {
     activeRegistryId: string;
     recipientView: RecipientView;
     totalValue: number;
-    recipientCategory: string;
-    recipientSort: SortOption;
+    filters: GiftFilters;
     copied: boolean;
     showAddGift: boolean;
     showListSettings: boolean;
@@ -40,8 +40,7 @@ type RecipientWorkspaceProps = {
     newGift: GiftDraft;
     newCategory: string;
     newStatus: string;
-    setRecipientCategory: (value: string) => void;
-    setRecipientSort: (value: SortOption) => void;
+    setFilters: (update: Partial<GiftFilters>) => void;
     setNewGift: Dispatch<SetStateAction<GiftDraft>>;
     setEditingGiftId: (value: string | null) => void;
     setShowAddGift: (value: boolean) => void;
@@ -64,6 +63,7 @@ type RecipientWorkspaceProps = {
     onNewList: () => void;
     onEditList: () => void;
     onDeleteList: () => void;
+    onDuplicateList: () => void;
 };
 
 export function RecipientWorkspace({
@@ -72,8 +72,7 @@ export function RecipientWorkspace({
     activeRegistryId,
     recipientView,
     totalValue,
-    recipientCategory,
-    recipientSort,
+    filters,
     copied,
     showAddGift,
     showListSettings,
@@ -81,8 +80,7 @@ export function RecipientWorkspace({
     newGift,
     newCategory,
     newStatus,
-    setRecipientCategory,
-    setRecipientSort,
+    setFilters,
     setNewGift,
     setEditingGiftId,
     setShowAddGift,
@@ -105,6 +103,7 @@ export function RecipientWorkspace({
     onNewList,
     onEditList,
     onDeleteList,
+    onDuplicateList,
 }: RecipientWorkspaceProps) {
     return (
         <section className="workspace recipient-workspace">
@@ -119,6 +118,7 @@ export function RecipientWorkspace({
                         </select>
                         <button aria-label="Edit list details" className="icon-button" onClick={onEditList} title="Edit list details" type="button"><Pencil size={15} /></button>
                         <button aria-label="Delete list" className="icon-button" onClick={onDeleteList} title="Delete list" type="button"><Trash2 size={15} /></button>
+                        <button aria-label="Duplicate list" className="icon-button" onClick={onDuplicateList} title="Duplicate list" type="button"><Copy size={15} /></button>
                         <button className="text-button" onClick={onNewList} type="button"><Plus size={15} /> New list</button>
                     </div>
                 </div>
@@ -165,12 +165,9 @@ export function RecipientWorkspace({
                     handleImageFile={handleImageFile}
                 />
             ) : null}
-            <div className="toolbar-row">
-                <div className="filter-label"><Search size={16} /><span>Browse gifts</span></div>
-                <label>Category<select value={recipientCategory} onChange={(event) => setRecipientCategory(event.target.value)}><option value="all">All categories</option>{recipientView.categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
-                <label>Sort by<select value={recipientSort} onChange={(event) => setRecipientSort(event.target.value as SortOption)}><option value="recent">Recently added</option><option value="price">Price</option><option value="name">Name</option></select></label>
+            <GiftFilterControls registry={registry} filters={filters} setFilters={setFilters}>
                 <button className="primary-button add-gift-button" onClick={() => { setNewGift({ title: "", description: "", imageUrl: "", linkUrl: "", price: undefined, categoryId: "", status: "", dependsOn: [], dependencyText: "" }); setEditingGiftId(null); setShowAddGift(true); }} type="button"><Plus size={17} /> Add a gift</button>
-            </div>
+            </GiftFilterControls>
             {recipientView.gifts.length === 0 ? (
                 <div className="empty-state"><GiftIcon size={24} /><h3>No gifts yet</h3><p>Add a gift to get the list started.</p><button className="primary-button" onClick={() => { setNewGift({ title: "", description: "", imageUrl: "", linkUrl: "", price: undefined, categoryId: "", status: "", dependsOn: [], dependencyText: "" }); setEditingGiftId(null); setShowAddGift(true); }} type="button"><Plus size={17} /> Add a gift</button></div>
             ) : null}

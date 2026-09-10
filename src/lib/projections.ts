@@ -3,35 +3,46 @@ import type {
   ClaimRecord,
   ClaimState,
   Gift,
-  GiftGiverSortOption,
   GiftGiverProfile,
   GiftGiverView,
   RecipientView,
   Registry,
-  SortOption,
+  GiftFilters,
 } from '../types';
 
-const claimStateOrder: Record<ClaimState | 'available', number> = {
-  available: 0,
-  considering: 1,
-  claimed: 2,
-};
-
-function sortGifts(gifts: Gift[], sort: SortOption, categoryNames: Record<string, string>) {
+function sortGifts(gifts: Gift[], sort: GiftFilters['sort'], categoryNames: Record<string, string>, statusNames: Record<string, string>) {
   return [...gifts].sort((left, right) => {
+    const direction = sort.endsWith('-desc') ? -1 : 1;
     switch (sort) {
-      case 'price':
-        return (left.price ?? Number.POSITIVE_INFINITY) - (right.price ?? Number.POSITIVE_INFINITY);
-      case 'name':
-        return left.title.localeCompare(right.title);
-      case 'category':
-        return (categoryNames[left.categoryId ?? ''] ?? 'Other').localeCompare(categoryNames[right.categoryId ?? ''] ?? 'Other');
-      case 'recent':
-        return right.addedAt.localeCompare(left.addedAt);
+      case 'price-asc':
+      case 'price-desc':
+        return direction * ((left.price ?? Number.POSITIVE_INFINITY) - (right.price ?? Number.POSITIVE_INFINITY));
+      case 'name-asc':
+      case 'name-desc':
+        return direction * left.title.localeCompare(right.title);
+      case 'category-asc':
+      case 'category-desc':
+        return direction * (categoryNames[left.categoryId ?? ''] ?? 'Other').localeCompare(categoryNames[right.categoryId ?? ''] ?? 'Other');
+      case 'status-asc':
+      case 'status-desc':
+        return direction * (statusNames[left.status ?? ''] ?? 'No status').localeCompare(statusNames[right.status ?? ''] ?? 'No status');
       default:
-        return right.addedAt.localeCompare(left.addedAt);
+        return left.title.localeCompare(right.title);
     }
   });
+}
+
+function filterGifts(gifts: Gift[], filters: GiftFilters) {
+  return gifts
+    .filter((gift) => filters.categoryIds.length === 0 || filters.categoryIds.includes(gift.categoryId ?? ''))
+    .filter((gift) => filters.statusIds.length === 0 || filters.statusIds.includes(gift.status ?? ''))
+    .filter((gift) => filters.minPrice === undefined || (gift.price ?? 0) >= filters.minPrice)
+    .filter((gift) => filters.maxPrice === undefined || (gift.price ?? Number.POSITIVE_INFINITY) <= filters.maxPrice)
+    .filter((gift) => {
+      const hasDependency = gift.dependsOn.length > 0 || Boolean(gift.dependencyText);
+      return filters.dependency === 'all' || (filters.dependency === 'yes' ? hasDependency : !hasDependency);
+    })
+    .filter((gift) => !filters.dependentOnGiftId || gift.dependsOn.includes(filters.dependentOnGiftId));
 }
 
 function getDependenciesLabel(giftTitles: Record<string, string>, dependencyIds: string[], dependencyText?: string) {
@@ -91,16 +102,12 @@ function getGiftClaimSummary(claims: ClaimRecord[], giftId: string) {
 
 export function createRecipientView(
   registry: Registry,
-  filters: { category: string; sort: SortOption },
+  filters: GiftFilters,
 ): RecipientView {
   const categoryNames = Object.fromEntries(registry.categories.map((category) => [category.id, category.name]));
   const statusNames = Object.fromEntries(registry.statuses.map((status) => [status.id, status.name]));
   const giftTitles = Object.fromEntries(registry.gifts.map((gift) => [gift.id, gift.title]));
-  const visibleGifts = sortGifts(
-    registry.gifts.filter((gift) => filters.category === 'all' || gift.categoryId === filters.category),
-    filters.sort,
-    categoryNames,
-  );
+  const visibleGifts = sortGifts(filterGifts(registry.gifts, filters), filters.sort, categoryNames, statusNames);
 
   return {
     listName: registry.listName,
@@ -127,18 +134,20 @@ export function createGiftGiverView(
   registry: Registry,
   claims: ClaimRecord[],
   filters: {
-    category: string;
-    sort: GiftGiverSortOption;
+    categoryIds: string[];
+    sort: GiftFilters['sort'];
     claimFilter: ClaimFilter;
-    dependenciesOnly: boolean;
+    statusIds: string[];
+    minPrice: number | undefined;
+    maxPrice: number | undefined;
+    dependency: GiftFilters['dependency'];
+    dependentOnGiftId: string;
   },
 ): GiftGiverView {
   const categoryNames = Object.fromEntries(registry.categories.map((category) => [category.id, category.name]));
   const statusNames = Object.fromEntries(registry.statuses.map((status) => [status.id, status.name]));
   const giftTitles = Object.fromEntries(registry.gifts.map((gift) => [gift.id, gift.title]));
-  const filteredGifts = registry.gifts
-    .filter((gift) => filters.category === 'all' || gift.categoryId === filters.category)
-    .filter((gift) => !filters.dependenciesOnly || gift.dependsOn.length > 0 || Boolean(gift.dependencyText))
+  const filteredGifts = filterGifts(registry.gifts, filters)
     .filter((gift) => {
       const claimState = getGiftClaimSummary(claims, gift.id).state;
 
@@ -154,15 +163,7 @@ export function createGiftGiverView(
       }
     });
 
-  const sortedGifts =
-    filters.sort === 'claim-state'
-      ? [...filteredGifts].sort((left, right) => {
-          const leftState = getGiftClaimSummary(claims, left.id).state;
-          const rightState = getGiftClaimSummary(claims, right.id).state;
-
-          return claimStateOrder[leftState] - claimStateOrder[rightState];
-        })
-      : sortGifts(filteredGifts, filters.sort, categoryNames);
+  const sortedGifts = sortGifts(filteredGifts, filters.sort, categoryNames, statusNames);
 
   return {
     listName: registry.listName,

@@ -23,9 +23,12 @@ import {
   clearSession,
   createAccount,
   getAccountRegistries,
+  getSavedRegistries,
   getSharedRegistry,
   getStoredSession,
   saveAccountRegistries,
+  saveSharedRegistry,
+  removeSavedRegistry,
   signIn,
   updateSharedClaim,
   updateAccountProfile,
@@ -36,9 +39,8 @@ import type {
   ClaimState,
   Gift,
   GiftGiverProfile,
-  GiftGiverSortOption,
+  GiftFilters,
   Registry,
-  SortOption,
 } from "./types";
 
 type Workspace = "recipient" | "giver";
@@ -68,6 +70,7 @@ function App() {
   const sharedCode = new URLSearchParams(window.location.search).get("list")?.trim().toUpperCase() ?? "";
   const [account, setAccount] = useState<RecipientAccount | null>(null);
   const [registries, setRegistries] = useState<Registry[]>([]);
+  const [savedRegistries, setSavedRegistries] = useState<Registry[]>([]);
   const [sharedRegistry, setSharedRegistry] = useState<Registry | null>(null);
   const [activeRegistryId, setActiveRegistryId] = useState("");
   const [sessionReady, setSessionReady] = useState(false);
@@ -84,12 +87,9 @@ function App() {
     );
   };
   const [workspace, setWorkspace] = useState<Workspace>(() => sharedCode ? "giver" : "recipient");
-  const [recipientCategory, setRecipientCategory] = useState("all");
-  const [recipientSort, setRecipientSort] = useState<SortOption>("recent");
-  const [giverCategory, setGiverCategory] = useState("all");
-  const [giverSort] = useState<GiftGiverSortOption>("claim-state");
+  const [recipientFilters, setRecipientFilters] = useState<GiftFilters>({ sort: "name-asc", categoryIds: [], statusIds: [], minPrice: undefined, maxPrice: undefined, dependency: "all", dependentOnGiftId: "" });
+  const [giverFilters, setGiverFilters] = useState<GiftFilters>({ sort: "name-asc", categoryIds: [], statusIds: [], minPrice: undefined, maxPrice: undefined, dependency: "all", dependentOnGiftId: "" });
   const [giverClaimFilter, setGiverClaimFilter] = useState<ClaimFilter>("all");
-  const [giverDependenciesOnly, setGiverDependenciesOnly] = useState(false);
   const [giftGiverProfile, setGiftGiverProfile] = useState<GiftGiverProfile>({
     id: "demo-viewer",
     mode: "guest",
@@ -115,8 +115,10 @@ function App() {
   const [listName, setListName] = useState("");
   const [listOccasion, setListOccasion] = useState("");
   const [showListSetup, setShowListSetup] = useState(false);
-  const [listSetupMode, setListSetupMode] = useState<"create" | "edit">("create");
+  const [listSetupMode, setListSetupMode] = useState<"create" | "edit" | "duplicate">("create");
+  const [duplicateSource, setDuplicateSource] = useState<Registry | null>(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [showOwnListsPrompt, setShowOwnListsPrompt] = useState(false);
   const [activeSharedCode, setActiveSharedCode] = useState(sharedCode);
   const giverRegistry = sharedRegistry ?? registry;
 
@@ -150,8 +152,10 @@ function App() {
         }
         if (storedAccount) {
           const nextRegistries = await getAccountRegistries(storedAccount);
+          const nextSavedRegistries = await getSavedRegistries();
           if (cancelled) return;
           setRegistries(nextRegistries);
+          setSavedRegistries(nextSavedRegistries);
           setActiveRegistryId(nextRegistries[0]?.id ?? "");
         }
       } finally {
@@ -169,29 +173,24 @@ function App() {
   const recipientView = useMemo(
     () =>
       createRecipientView(registry, {
-        category: recipientCategory,
-        sort: recipientSort,
+        ...recipientFilters,
       }),
-    [registry, recipientCategory, recipientSort],
+    [registry, recipientFilters],
   );
   const giftGiverView = useMemo(
     () =>
       (isUnlocked || Boolean(sharedRegistry))
         ? createGiftGiverView(giverRegistry, giverRegistry.claims, {
-            category: giverCategory,
-            sort: giverSort,
+            ...giverFilters,
             claimFilter: giverClaimFilter,
-            dependenciesOnly: giverDependenciesOnly,
           })
         : null,
     [
       giverRegistry,
       isUnlocked,
       sharedRegistry,
-      giverCategory,
-      giverSort,
+      giverFilters,
       giverClaimFilter,
-      giverDependenciesOnly,
     ],
   );
   const totalValue = registry.gifts.reduce(
@@ -395,7 +394,9 @@ function App() {
       setShowProfile(false);
       setShowListSetup(false);
       const nextRegistries = await getAccountRegistries(nextAccount);
+      const nextSavedRegistries = await getSavedRegistries();
       setRegistries(nextRegistries);
+      setSavedRegistries(nextSavedRegistries);
       setActiveRegistryId(nextRegistries[0]?.id ?? "");
       setAuthPassword("");
     } catch (error) {
@@ -412,6 +413,7 @@ function App() {
     setAccount(null);
     setWorkspace("recipient");
     setRegistries([]);
+    setSavedRegistries([]);
     setActiveRegistryId("");
     setShowListSetup(false);
     setListSetupMode("create");
@@ -423,6 +425,60 @@ function App() {
     setWorkspace("recipient");
     setIsUnlocked(false);
     setAccessError("");
+  };
+
+  const openSavedRegistry = (savedRegistry: Registry) => {
+    setSharedRegistry(savedRegistry);
+    setActiveSharedCode(savedRegistry.accessCode);
+    setAccessCode(savedRegistry.accessCode);
+    setIsUnlocked(true);
+    setWorkspace("giver");
+    if (account) {
+      setGiftGiverProfile({
+        id: account.id,
+        mode: "account",
+        displayName: account.name,
+        avatarUrl: account.avatarUrl,
+      });
+    }
+  };
+
+  const openOwnLists = () => {
+    if (!account && sharedRegistry) {
+      setShowOwnListsPrompt(true);
+      return;
+    }
+    setWorkspace("recipient");
+  };
+
+  const signInForOwnLists = () => {
+    setShowOwnListsPrompt(false);
+    setAuthMode("sign-in");
+    setWorkspace("recipient");
+  };
+
+  const saveCurrentSharedRegistry = async () => {
+    if (!account || !sharedRegistry) return;
+    const savedRegistry = await saveSharedRegistry(sharedRegistry.accessCode);
+    setSavedRegistries((current) =>
+      current.some((item) => item.accessCode === savedRegistry.accessCode)
+        ? current
+        : [...current, savedRegistry],
+    );
+  };
+
+  const removeCurrentSavedRegistry = async () => {
+    if (!sharedRegistry) return;
+    await removeSavedRegistry(sharedRegistry.accessCode);
+    setSavedRegistries((current) => current.filter((item) => item.accessCode !== sharedRegistry.accessCode));
+  };
+
+  const duplicateList = (sourceRegistry = registry) => {
+    setDuplicateSource(sourceRegistry);
+    setListName(`${sourceRegistry.listName} copy`);
+    setListOccasion(sourceRegistry.occasion);
+    setListSetupMode("duplicate");
+    setShowListSetup(true);
   };
 
   const openNewList = () => {
@@ -481,13 +537,15 @@ function App() {
       setListOccasion("");
       return;
     }
+    const sourceRegistry = listSetupMode === "duplicate" ? (duplicateSource ?? registry) : initialRegistry;
     const newRegistry: Registry = {
-      ...initialRegistry,
+      ...sourceRegistry,
       id: `registry-${Date.now()}`,
       listName: name,
       occasion: listOccasion.trim(),
       ownerName: account.name,
       accessCode: crypto.randomUUID().slice(0, 6).toUpperCase(),
+      claims: [],
     };
     setRegistries((current) => [...current, newRegistry]);
     setActiveRegistryId(newRegistry.id);
@@ -578,11 +636,11 @@ function App() {
         </div>
       </header>
       <nav className="role-tabs" aria-label="Workspace">
-        <button className={workspace === "recipient" ? "active" : ""} onClick={() => setWorkspace("recipient")} type="button">
+        <button className={workspace === "recipient" ? "active" : ""} onClick={openOwnLists} type="button">
           <BookOpen size={17} /> My list
         </button>
         <button className={workspace === "giver" ? "active" : ""} onClick={() => setWorkspace("giver")} type="button">
-          <UsersRound size={17} /> I have a code
+          <UsersRound size={17} /> Friends & family
         </button>
       </nav>
       {workspace === "recipient" ? (
@@ -592,8 +650,7 @@ function App() {
           activeRegistryId={activeRegistryId}
           recipientView={recipientView}
           totalValue={totalValue}
-          recipientCategory={recipientCategory}
-          recipientSort={recipientSort}
+          filters={recipientFilters}
           copied={copied}
           showAddGift={showAddGift}
           showListSettings={showListSettings}
@@ -601,8 +658,7 @@ function App() {
           newGift={newGift}
           newCategory={newCategory}
           newStatus={newStatus}
-          setRecipientCategory={setRecipientCategory}
-          setRecipientSort={setRecipientSort}
+          setFilters={(update) => setRecipientFilters((current) => ({ ...current, ...update }))}
           setNewGift={setNewGift}
           setEditingGiftId={setEditingGiftId}
           setShowAddGift={setShowAddGift}
@@ -625,6 +681,7 @@ function App() {
           onNewList={openNewList}
           onEditList={openEditList}
           onDeleteList={deleteActiveList}
+          onDuplicateList={() => duplicateList(registry)}
         />
       ) : (
         <GiverWorkspace
@@ -634,19 +691,38 @@ function App() {
           accessCode={accessCode}
           accessError={accessError}
           unlocked={isUnlocked}
-          category={giverCategory}
+          filters={giverFilters}
           claimFilter={giverClaimFilter}
-          dependenciesOnly={giverDependenciesOnly}
+          savedRegistries={savedRegistries}
+          canSave={Boolean(account && sharedRegistry)}
+          saved={Boolean(sharedRegistry && savedRegistries.some((item) => item.accessCode === sharedRegistry.accessCode))}
           setAccessCode={setAccessCode}
           setProfile={setGiftGiverProfile}
-          setCategory={setGiverCategory}
+          setFilters={(update) => setGiverFilters((current) => ({ ...current, ...update }))}
           setClaimFilter={setGiverClaimFilter}
-          setDependenciesOnly={setGiverDependenciesOnly}
           unlock={unlockRegistry}
           setUnlocked={setIsUnlocked}
           updateClaim={updateClaim}
+          saveList={saveCurrentSharedRegistry}
+          removeSavedList={removeCurrentSavedRegistry}
+          onDuplicateList={() => duplicateList(sharedRegistry ?? registry)}
+          onOpenSavedList={openSavedRegistry}
         />
       )}
+      {showOwnListsPrompt ? (
+        <div className="modal-backdrop" role="presentation">
+          <section aria-labelledby="own-lists-prompt-title" aria-modal="true" className="access-prompt" role="dialog">
+            <button aria-label="Close" className="access-prompt-close" onClick={() => setShowOwnListsPrompt(false)} type="button">×</button>
+            <span className="unlock-art"><BookOpen size={22} /></span>
+            <h2 id="own-lists-prompt-title">Sign in to Access your Own Lists</h2>
+            <p>Your friend’s list is still open. Sign in to view and manage your own lists.</p>
+            <div className="access-prompt-actions">
+              <button className="secondary-button" onClick={() => setShowOwnListsPrompt(false)} type="button">Stay on this list</button>
+              <button className="primary-button" onClick={signInForOwnLists} type="button">Sign in <ArrowRight size={16} /></button>
+            </div>
+          </section>
+        </div>
+      ) : null}
       <footer>
         <span>HaulBoard</span>
         <span>Make a list. Share it.</span>

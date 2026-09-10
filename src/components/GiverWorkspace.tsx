@@ -1,6 +1,7 @@
-import { ArrowRight, ChevronDown, Gift as GiftIcon, Search, UsersRound } from "lucide-react";
+import { ArrowRight, Bookmark, ChevronDown, Copy, Gift as GiftIcon } from "lucide-react";
 import type { CSSProperties, FormEvent } from "react";
-import type { ClaimFilter, ClaimState, GiftGiverProfile, GiftGiverView, Registry } from "../types";
+import { GiftFilterControls } from "./GiftFilterControls";
+import type { ClaimFilter, ClaimState, GiftFilters, GiftGiverProfile, GiftGiverView, Registry } from "../types";
 
 type GiverWorkspaceProps = {
     registry: Registry;
@@ -9,17 +10,22 @@ type GiverWorkspaceProps = {
     accessCode: string;
     accessError: string;
     unlocked: boolean;
-    category: string;
+    filters: GiftFilters;
     claimFilter: ClaimFilter;
-    dependenciesOnly: boolean;
+    savedRegistries: Registry[];
+    canSave: boolean;
+    saved: boolean;
     setAccessCode: (value: string) => void;
     setProfile: (value: GiftGiverProfile) => void;
-    setCategory: (value: string) => void;
+    setFilters: (update: Partial<GiftFilters>) => void;
     setClaimFilter: (value: ClaimFilter) => void;
-    setDependenciesOnly: (value: boolean) => void;
     unlock: (event: FormEvent<HTMLFormElement>) => void;
     setUnlocked: (value: boolean) => void;
     updateClaim: (giftId: string, state: ClaimState) => void;
+    saveList: () => void;
+    removeSavedList: () => void;
+    onDuplicateList: () => void;
+    onOpenSavedList: (registry: Registry) => void;
 };
 
 function profileInitial(profile: GiftGiverProfile) {
@@ -33,6 +39,16 @@ function ProfileBadge({ profile }: { profile: GiftGiverProfile }) {
         </span>
     ) : (
         <span className="avatar" title={profile.displayName || "Guest giver"}>{profileInitial(profile)}</span>
+    );
+}
+
+function OwnerBadge({ registry }: { registry: Registry }) {
+    const initial = registry.ownerName.trim().charAt(0).toUpperCase() || "?";
+    return (
+        <div className="list-owner-card">
+            {registry.ownerAvatarUrl ? <img alt="" className="list-owner-avatar" src={registry.ownerAvatarUrl} /> : <span className="list-owner-avatar list-owner-initial">{initial}</span>}
+            <span><small>Gift list from</small><strong>{registry.ownerName || "A friend"}</strong></span>
+        </div>
     );
 }
 
@@ -65,21 +81,23 @@ function ClaimPeopleRow({ label, people }: { label: string; people: GiftGiverVie
     );
 }
 
-export function GiverWorkspace({ registry, view, profile, accessCode, accessError, unlocked, category, claimFilter, dependenciesOnly, setAccessCode, setProfile, setCategory, setClaimFilter, setDependenciesOnly, unlock, setUnlocked, updateClaim }: GiverWorkspaceProps) {
+export function GiverWorkspace({ registry, view, profile, accessCode, accessError, unlocked, filters, claimFilter, canSave, saved, savedRegistries, setAccessCode, setProfile, setFilters, setClaimFilter, unlock, setUnlocked, updateClaim, saveList, removeSavedList, onDuplicateList, onOpenSavedList }: GiverWorkspaceProps) {
     return (
         <section className="workspace giver-workspace">
-            <div className="section-heading">
+            {unlocked ? <div className="shared-list-identity">
                 <div>
-                    <span className="eyebrow">Shared gift list</span>
-                    <h2>Pick a gift</h2>
-                    <p>Browse the list and mark what you plan to buy.</p>
+                    <span className="eyebrow">{registry.occasion || "Shared gift list"}</span>
+                    <h2>{registry.listName}</h2>
+                    <OwnerBadge registry={registry} />
                 </div>
-                <span className="giver-badge"><UsersRound size={16} /> Giver</span>
-            </div>
+                <span className="giver-header-actions"><button className="text-button giver-switch-action" onClick={() => setUnlocked(false)} type="button">Pick another list</button>{canSave ? <span className="giver-management-actions"><button className="text-button" onClick={saved ? removeSavedList : saveList} type="button">{saved ? "Remove saved list" : "Save list"}</button><button className="text-button" onClick={onDuplicateList} type="button"><Copy size={15} /> Duplicate list</button></span> : null}</span>
+            </div> : null}
             {!unlocked ? (
                 <div className="unlock-panel">
                     <div className="unlock-art"><GiftIcon size={26} /></div>
-                    <div><h3>Enter the list code</h3><p>Use the code from the list owner.</p></div>
+                    <div><h3>Join the gift hunt</h3><p>Open a saved list or use the code from its owner.</p></div>
+                    {savedRegistries.length > 0 ? <div className="saved-list-panel"><div className="saved-list-heading"><Bookmark size={16} /><strong>Saved lists</strong></div><div className="saved-list-scroll">{savedRegistries.map((savedList) => <button className="saved-list-option" key={savedList.id} onClick={() => onOpenSavedList(savedList)} type="button">{savedList.ownerAvatarUrl ? <img alt="" className="saved-list-avatar" src={savedList.ownerAvatarUrl} /> : <span className="saved-list-avatar saved-list-initial">{savedList.ownerName.trim().charAt(0).toUpperCase() || "?"}</span>}<span><strong>{savedList.listName}</strong><small>{savedList.ownerName ? `From ${savedList.ownerName}` : savedList.occasion || "Shared list"}</small></span><ArrowRight size={16} /></button>)}</div></div> : null}
+                    <div className="code-divider"><span>or enter a code</span></div>
                     <form onSubmit={unlock}>
                         <label>List code<input autoFocus aria-describedby={accessError ? "access-error" : undefined} aria-invalid={Boolean(accessError)} onChange={(event) => setAccessCode(event.target.value)} placeholder="Owner-provided code" value={accessCode} /></label>
                         <label>Your name<input onChange={(event) => setProfile({ ...profile, displayName: event.target.value })} placeholder="Your name" value={profile.displayName} /></label>
@@ -89,19 +107,10 @@ export function GiverWorkspace({ registry, view, profile, accessCode, accessErro
                 </div>
             ) : (
                 <>
-                    <div className="giver-welcome">
-                        <div><span className="eyebrow">Shared list</span><h2>{registry.listName}</h2></div>
-                        <button className="text-button" onClick={() => setUnlocked(false)} type="button">Change code</button>
-                    </div>
                     <div className="giver-summary">
                         <span className="giver-identity">Signed in as <ProfileBadge profile={profile} /><strong>{profile.displayName || "Guest"}</strong></span>
                     </div>
-                    <div className="toolbar-row">
-                        <div className="filter-label"><Search size={16} /><span>Browse gifts</span></div>
-                        <label>Category<select value={category} onChange={(event) => setCategory(event.target.value)}><option value="all">All categories</option>{view?.categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-                        <label>Status<select value={claimFilter} onChange={(event) => setClaimFilter(event.target.value as ClaimFilter)}><option value="all">Everything</option><option value="available">Available</option><option value="considering">Considering</option><option value="claimed">Claimed</option></select></label>
-                        <label className="check-filter"><input checked={dependenciesOnly} onChange={(event) => setDependenciesOnly(event.target.checked)} type="checkbox" /> Has dependencies</label>
-                    </div>
+                    <GiftFilterControls claimFilter={claimFilter} registry={registry} filters={filters} setClaimFilter={setClaimFilter} setFilters={setFilters} />
                     <div className="gift-grid">
                         {view?.gifts.map((gift) => (
                             <article className="gift-card" key={gift.id}>

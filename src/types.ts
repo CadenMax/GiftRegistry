@@ -1,7 +1,17 @@
 export type ClaimState = 'considering' | 'claimed';
 export type ClaimFilter = 'all' | 'available' | 'considering' | 'claimed';
-export type SortOption = 'price' | 'name' | 'category' | 'recent';
+export type SortOption = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'category-asc' | 'category-desc' | 'status-asc' | 'status-desc';
 export type GiftGiverSortOption = SortOption | 'claim-state';
+export type DependencyFilter = 'all' | 'yes' | 'no';
+export type GiftFilters = {
+  sort: SortOption;
+  categoryIds: string[];
+  statusIds: string[];
+  minPrice: number | undefined;
+  maxPrice: number | undefined;
+  dependency: DependencyFilter;
+  dependentOnGiftId: string;
+};
 
 export type Category = {
   id: string;
@@ -43,6 +53,7 @@ export type Registry = {
   listName: string;
   occasion: string;
   ownerName: string;
+  ownerAvatarUrl?: string;
   accessCode: string;
   categories: Category[];
   statuses: Status[];

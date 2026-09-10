@@ -42,6 +42,23 @@ export async function getAccountRegistries(_account: RecipientAccount) {
   return response.registries.map(normaliseRegistry);
 }
 
+export async function getSavedRegistries() {
+  const response = await request<{ registries: Registry[] }>('/api/saved-lists');
+  return response.registries.map(normaliseRegistry);
+}
+
+export async function saveSharedRegistry(accessCode: string) {
+  const response = await request<{ registry: Registry }>('/api/saved-lists', {
+    method: 'POST',
+    body: JSON.stringify({ accessCode }),
+  });
+  return normaliseRegistry(response.registry);
+}
+
+export async function removeSavedRegistry(accessCode: string) {
+  await request<{ ok: boolean }>(`/api/saved-lists/${encodeURIComponent(accessCode)}`, { method: 'DELETE' });
+}
+
 export async function createAccount(name: string, email: string, password: string) {
   const response = await request<{ account: RecipientAccount }>('/api/auth/register', {
     method: 'POST',

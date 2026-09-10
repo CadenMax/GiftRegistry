@@ -26,6 +26,13 @@ database.exec(`
     token_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     expires_at INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS saved_lists (
+    account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    registry_id TEXT NOT NULL,
+    access_code TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (account_id, registry_id)
+  );
 `);
 
 const statements = {
@@ -39,6 +46,9 @@ const statements = {
   session: database.prepare('SELECT account_id, expires_at FROM sessions WHERE token_hash = ?'),
   createSession: database.prepare('INSERT INTO sessions (token_hash, account_id, expires_at) VALUES (?, ?, ?)'),
   deleteSession: database.prepare('DELETE FROM sessions WHERE token_hash = ?'),
+  savedLists: database.prepare('SELECT registry_id, access_code FROM saved_lists WHERE account_id = ? ORDER BY created_at ASC'),
+  saveList: database.prepare('INSERT OR IGNORE INTO saved_lists (account_id, registry_id, access_code, created_at) VALUES (?, ?, ?, ?)'),
+  deleteSavedList: database.prepare('DELETE FROM saved_lists WHERE account_id = ? AND access_code = ?'),
   sharedRegistries: database.prepare('SELECT id, account_id, data FROM registries'),
   updateRegistry: database.prepare('UPDATE registries SET data = ?, updated_at = ? WHERE id = ? AND account_id = ?'),
 };
@@ -111,7 +121,10 @@ function setSession(response, accountId) {
 function findSharedRegistry(accessCode) {
   for (const row of statements.sharedRegistries.all()) {
     const registry = JSON.parse(row.data);
-    if (registry.accessCode === accessCode) return { row, registry };
+    if (registry.accessCode === accessCode) {
+      const owner = statements.accountById.get(row.account_id);
+      return { row, registry: { ...registry, ...(owner?.avatarUrl ? { ownerAvatarUrl: owner.avatarUrl } : {}) } };
+    }
   }
   return null;
 }
@@ -221,6 +234,26 @@ async function handleApi(request, response, path) {
       throw error;
     }
     return json(response, 200, { registries });
+  }
+  if (request.method === 'GET' && path === '/api/saved-lists') {
+    const registries = statements.savedLists.all(account.id)
+      .map((savedList) => findSharedRegistry(savedList.access_code)?.registry)
+      .filter(Boolean);
+    return json(response, 200, { registries });
+  }
+  if (request.method === 'POST' && path === '/api/saved-lists') {
+    const body = await readBody(request);
+    const accessCode = String(body.accessCode ?? '').trim().toUpperCase();
+    const shared = findSharedRegistry(accessCode);
+    if (!shared) return json(response, 404, { error: 'That shared list could not be found.' });
+    if (shared.row.account_id === account.id) return json(response, 403, { error: 'You cannot save your own list as a shared list.' });
+    statements.saveList.run(account.id, shared.row.id, shared.registry.accessCode, new Date().toISOString());
+    return json(response, 200, { registry: shared.registry });
+  }
+  const savedListMatch = path.match(/^\/api\/saved-lists\/([^/]+)$/);
+  if (request.method === 'DELETE' && savedListMatch) {
+    statements.deleteSavedList.run(account.id, decodeURIComponent(savedListMatch[1]).trim().toUpperCase());
+    return json(response, 200, { ok: true });
   }
   if (request.method === 'PATCH' && path === '/api/profile') {
     const body = await readBody(request);
