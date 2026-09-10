@@ -381,7 +381,7 @@ function App() {
     event.preventDefault();
     setAuthError("");
     try {
-      const nextAccount =
+      const authenticatedAccount =
         authMode === "create"
           ? await createAccount(
               authName,
@@ -389,7 +389,11 @@ function App() {
               authPassword,
             )
           : await signIn(authEmail, authPassword);
+      const nextAccount = (await getStoredSession()) ?? authenticatedAccount;
       setAccount(nextAccount);
+      setWorkspace("recipient");
+      setShowProfile(false);
+      setShowListSetup(false);
       const nextRegistries = await getAccountRegistries(nextAccount);
       setRegistries(nextRegistries);
       setActiveRegistryId(nextRegistries[0]?.id ?? "");
@@ -539,7 +543,10 @@ function App() {
       <ProfileScreen
         account={account}
         listCount={registries.length}
-        onBack={() => setShowProfile(false)}
+        onBack={() => {
+          setShowProfile(false);
+          setWorkspace("recipient");
+        }}
         onSignOut={signOut}
         onSave={saveProfile}
       />

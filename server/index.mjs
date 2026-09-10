@@ -176,6 +176,10 @@ async function handleApi(request, response, path) {
     const accessCode = decodeURIComponent(sharedMatch[1]).trim().toUpperCase();
     const shared = findSharedRegistry(accessCode);
     if (!shared) return json(response, 404, { error: 'That shared list could not be found.' });
+    const signedInAccount = authenticatedAccount(request);
+    if (signedInAccount?.id === shared.row.account_id) {
+      return json(response, 403, { error: 'List owners cannot open their own shared list.' });
+    }
     if (request.method === 'GET' && path === `/api/shared/${sharedMatch[1]}`) {
       return json(response, 200, { registry: shared.registry });
     }
@@ -185,7 +189,6 @@ async function handleApi(request, response, path) {
       if (!giftExists || !body.profile || !['considering', 'claimed'].includes(body.state)) {
         return json(response, 400, { error: 'That claim is not valid.' });
       }
-      const signedInAccount = authenticatedAccount(request);
       if (body.profile.mode === 'account' && (!signedInAccount || signedInAccount.id !== body.profile.id)) {
         return json(response, 403, { error: 'Sign in to use your account identity.' });
       }
