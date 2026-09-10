@@ -50,10 +50,10 @@ export function ProfileScreen({ account, listCount, onBack, onSignOut, onSave }:
       <header className="topbar" id="top">
         <a className="brand" href="#top">
           <span className="brand-mark"><GiftIcon size={18} /></span>
-          kindlist
+          Giftboard
         </a>
         <button className="text-button" onClick={onBack} type="button">
-          <ArrowLeft size={15} /> Back to my lists
+          <ArrowLeft size={15} /> Back
         </button>
       </header>
       <section className="profile-layout">
@@ -65,7 +65,7 @@ export function ProfileScreen({ account, listCount, onBack, onSignOut, onSave }:
             <ImagePlus size={15} /> Change avatar
             <input accept="image/*" onChange={handleAvatarFile} type="file" />
           </label>
-          <span className="eyebrow">Your profile</span>
+          <span className="eyebrow">Account</span>
           <h1>{name || "Your profile"}</h1>
           <label>
             Name
@@ -86,14 +86,14 @@ export function ProfileScreen({ account, listCount, onBack, onSignOut, onSave }:
             <input minLength={8} onChange={(event) => setNewPassword(event.target.value)} type="password" value={newPassword} />
           </label>
           {error ? <p className="error-message">{error}</p> : null}
-          {saved ? <p className="profile-success">Profile saved.</p> : null}
+          {saved ? <p className="profile-success">Saved.</p> : null}
           <button className="primary-button" disabled={saving} type="submit">{saving ? "Saving..." : "Save profile"}</button>
           <button className="secondary-button profile-logout" onClick={onSignOut} type="button"><LogOut size={16} /> Log out</button>
         </form>
       </section>
       <footer>
-        <span>kindlist</span>
-        <span>Thoughtful giving, made simple.</span>
+        <span>Giftboard</span>
+        <span>Make a list. Share it.</span>
       </footer>
     </main>
   );

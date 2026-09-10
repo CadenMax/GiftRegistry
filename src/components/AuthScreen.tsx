@@ -37,7 +37,7 @@ export function AuthScreen({
                     <span className="brand-mark">
                         <GiftIcon size={18} />
                     </span>
-                    kindlist
+                    Giftboard
                 </a>
                 <button className="text-button" onClick={onOpenGiver} type="button">
                     I have a code <ArrowRight size={15} />
@@ -45,15 +45,14 @@ export function AuthScreen({
             </header>
             <section className="auth-layout">
                 <div className="auth-intro">
-                    <span className="eyebrow">Your private gift list</span>
+                    <span className="eyebrow">Gift list</span>
                     <h1>
-                        Start with an account.
+                        Make a list.
                         <br />
-                        <em>Keep the surprise.</em>
+                        <em>Share it.</em>
                     </h1>
                     <p>
-                        Your list belongs to you. Create an account so your wishes,
-                        categories, and sharing code are ready whenever you return.
+                        Save gifts, sort them, and share one code with your people.
                     </p>
                 </div>
                 <form className="auth-card" onSubmit={onSubmit}>
@@ -73,11 +72,11 @@ export function AuthScreen({
                             Sign in
                         </button>
                     </div>
-                    <h2>{authMode === "create" ? "Make your list yours" : "Welcome back"}</h2>
+                    <h2>{authMode === "create" ? "Create your account" : "Sign in"}</h2>
                     <p>
                         {authMode === "create"
-                            ? "It only takes a moment to get started."
-                            : "Sign in to continue to your gift list."}
+                            ? "Set up your account in a minute."
+                            : "Pick up where you left off."}
                     </p>
                     {authMode === "create" ? (
                         <label>
@@ -114,18 +113,17 @@ export function AuthScreen({
                     </label>
                     {authError ? <p className="error-message">{authError}</p> : null}
                     <button className="primary-button" type="submit">
-                        {authMode === "create" ? "Create my account" : "Sign in"}{" "}
+                        {authMode === "create" ? "Create account" : "Sign in"}{" "}
                         <ArrowRight size={17} />
                     </button>
                     <small>
-                        Your account and lists are stored securely on the application
-                        server, so you can access them from any device.
+                        Your account and lists are saved securely, so you can access them from any device.
                     </small>
                 </form>
             </section>
             <footer>
-                <span>kindlist</span>
-                <span>Thoughtful giving, made simple.</span>
+                <span>Giftboard</span>
+                <span>Make a list. Share it.</span>
             </footer>
         </main>
     );
