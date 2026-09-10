@@ -49,7 +49,8 @@ function json(response, status, body) {
 }
 
 function accountFromRow(row) {
-  return { id: row.id, name: row.name, email: row.email, ...(row.avatarUrl ? { avatarUrl: row.avatarUrl } : {}) };
+  const avatarUrl = row.avatarUrl ?? row.avatar_url;
+  return { id: row.id, name: row.name, email: row.email, ...(avatarUrl ? { avatarUrl } : {}) };
 }
 
 function readBody(request) {

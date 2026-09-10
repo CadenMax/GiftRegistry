@@ -595,18 +595,6 @@
     white-space: nowrap;
 }
 
-.privacy-note {
-    align-items: center;
-    background: #eef4e9;
-    border-radius: 7px;
-    color: #587050;
-    display: flex;
-    font-size: .75rem;
-    gap: 8px;
-    margin-bottom: 22px;
-    padding: 10px 12px;
-}
-
 select,
 input,
 textarea {
@@ -746,6 +734,16 @@ a:focus-visible {
     font-size: .74rem;
 }
 
+.gift-category {
+    background: color-mix(in srgb, var(--tag-color, #e5c7b8) 22%, white);
+    border-radius: 999px;
+    color: color-mix(in srgb, var(--tag-color, #ad4938) 75%, #3f302b);
+    display: inline-block;
+    font-size: .67rem;
+    font-weight: 800;
+    padding: 4px 8px;
+}
+
 .gift-footer strong {
     color: var(--ink);
 }
@@ -785,9 +783,9 @@ a:focus-visible {
 }
 
 .gift-status {
-    background: #eef4e9;
+    background: color-mix(in srgb, var(--tag-color, #d9e7b8) 22%, white);
     border-radius: 999px;
-    color: #587050;
+    color: color-mix(in srgb, var(--tag-color, #587050) 75%, #3f302b);
     display: inline-block;
     font-size: .67rem;
     font-weight: 800;
@@ -953,6 +951,54 @@ a:focus-visible {
     min-width: 0;
 }
 
+.setting-option-name {
+    align-items: center;
+    display: inline-flex;
+    gap: 8px;
+    min-width: 0;
+}
+
+.option-swatch {
+    border: 1px solid rgba(63, 48, 43, .14);
+    border-radius: 50%;
+    display: inline-block;
+    flex: 0 0 12px;
+    height: 12px;
+    width: 12px;
+}
+
+.setting-option-actions {
+    align-items: center;
+    display: inline-flex;
+    gap: 8px;
+}
+
+.color-palette {
+    align-items: center;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.palette-swatch {
+    border: 2px solid transparent;
+    border-radius: 50%;
+    cursor: pointer;
+    height: 22px;
+    padding: 0;
+    width: 22px;
+}
+
+.palette-swatch:hover,
+.palette-swatch.selected {
+    border-color: var(--ink);
+    box-shadow: 0 0 0 2px #fff;
+}
+
+.palette-swatch.selected {
+    outline: 1px solid var(--ink);
+}
+
 .setting-option {
     align-items: center;
     border-bottom: 1px solid var(--line);
@@ -1040,26 +1086,6 @@ a:focus-visible {
 
 .giver-summary strong {
     color: var(--ink);
-}
-
-.legend-dot {
-    border-radius: 50%;
-    display: inline-block;
-    height: 7px;
-    margin: 0 4px 0 12px;
-    width: 7px;
-}
-
-.available-dot {
-    background: #79a26d;
-}
-
-.considering-dot {
-    background: #dda94d;
-}
-
-.claimed-dot {
-    background: #d67567;
 }
 
 .claim-details {

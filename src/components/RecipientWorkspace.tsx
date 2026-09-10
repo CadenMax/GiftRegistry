@@ -11,10 +11,19 @@ import {
     Share2,
     Trash2,
 } from "lucide-react";
-import type { ChangeEvent, Dispatch, FormEvent, SetStateAction } from "react";
+import type { ChangeEvent, CSSProperties, Dispatch, FormEvent, SetStateAction } from "react";
 import type { Gift, RecipientView, Registry, SortOption } from "../types";
 
 type GiftDraft = Omit<Gift, "id" | "addedAt">;
+
+const themeColors = [
+    { name: "Coral", value: "#e7a08f" },
+    { name: "Peach", value: "#f4c7a1" },
+    { name: "Sunshine", value: "#e8d49a" },
+    { name: "Sage", value: "#b9d4ad" },
+    { name: "Sky", value: "#b7d6df" },
+    { name: "Lilac", value: "#c9c2d8" },
+];
 
 type RecipientWorkspaceProps = {
     registry: Registry;
@@ -44,6 +53,8 @@ type RecipientWorkspaceProps = {
     addStatus: (assignToGift?: boolean) => void;
     deleteCategory: (categoryId: string) => void;
     deleteStatus: (statusId: string) => void;
+    updateCategoryColor: (categoryId: string, color: string) => void;
+    updateStatusColor: (statusId: string, color: string) => void;
     editGift: (giftId: string) => void;
     deleteGift: (giftId: string) => void;
     copyCode: () => void;
@@ -83,6 +94,8 @@ export function RecipientWorkspace({
     addStatus,
     deleteCategory,
     deleteStatus,
+    updateCategoryColor,
+    updateStatusColor,
     editGift,
     deleteGift,
     copyCode,
@@ -130,8 +143,8 @@ export function RecipientWorkspace({
                 <div className="list-settings">
                     <div><span className="eyebrow">List settings</span><h3>Shape your choices</h3><p>Create reusable categories and statuses, then remove the ones you no longer use.</p></div>
                     <div className="settings-columns">
-                        <OptionSettings title="Categories" value={newCategory} placeholder="New category" onChange={setNewCategory} onAdd={() => addCategory(false)} options={registry.categories.map((category) => ({ id: category.id, name: category.name }))} onDelete={deleteCategory} />
-                        <OptionSettings title="Statuses" value={newStatus} placeholder="New status" onChange={setNewStatus} onAdd={() => addStatus(false)} options={registry.statuses.map((status) => ({ id: status.id, name: status.name }))} onDelete={deleteStatus} />
+                        <OptionSettings title="Categories" value={newCategory} placeholder="New category" onChange={setNewCategory} onAdd={() => addCategory(false)} options={registry.categories.map((category) => ({ id: category.id, name: category.name, color: category.color }))} onDelete={deleteCategory} onOptionColorChange={updateCategoryColor} />
+                        <OptionSettings title="Statuses" value={newStatus} placeholder="New status" onChange={setNewStatus} onAdd={() => addStatus(false)} options={registry.statuses.map((status) => ({ id: status.id, name: status.name, color: status.color }))} onDelete={deleteStatus} onOptionColorChange={updateStatusColor} />
                     </div>
                 </div>
             ) : null}
@@ -158,23 +171,26 @@ export function RecipientWorkspace({
                 <label>Sort by<select value={recipientSort} onChange={(event) => setRecipientSort(event.target.value as SortOption)}><option value="recent">Recently added</option><option value="price">Price</option><option value="name">Name</option></select></label>
                 <button className="primary-button add-gift-button" onClick={() => { setNewGift({ title: "", description: "", imageUrl: "", linkUrl: "", price: undefined, categoryId: "", status: "", dependsOn: [], dependencyText: "" }); setEditingGiftId(null); setShowAddGift(true); }} type="button"><Plus size={17} /> Add a gift</button>
             </div>
-            <div className="privacy-note"><Check size={16} /><span>Private by design. This view never receives information about who is considering or buying anything.</span></div>
             {recipientView.gifts.length === 0 ? (
                 <div className="empty-state"><GiftIcon size={24} /><h3>Your list is ready for its first wish</h3><p>Add a gift to start building your list. You can always edit or remove it later.</p><button className="primary-button" onClick={() => { setNewGift({ title: "", description: "", imageUrl: "", linkUrl: "", price: undefined, categoryId: "", status: "", dependsOn: [], dependencyText: "" }); setEditingGiftId(null); setShowAddGift(true); }} type="button"><Plus size={17} /> Add your first gift</button></div>
             ) : null}
             <div className="gift-grid">{recipientView.gifts.map((gift) => (
                 <article className="gift-card" key={gift.id}>
                     {gift.imageUrl ? <img alt={gift.title} className="gift-image" src={gift.imageUrl} /> : <div className="gift-image gift-image-placeholder"><GiftIcon size={24} /><span>No image yet</span></div>}
-                    <div className="gift-copy"><div className="gift-title-row"><div>{gift.status ? <span className="gift-status">{gift.status}</span> : null}<h3>{gift.title}</h3><p>{gift.description || "No description added."}</p></div><span className="gift-card-actions"><button aria-label={`Edit ${gift.title}`} className="delete-button" onClick={() => editGift(gift.id)} title="Edit gift" type="button"><BookOpen size={16} /></button><button aria-label={`Remove ${gift.title}`} className="delete-button" onClick={() => deleteGift(gift.id)} title="Remove gift" type="button"><Trash2 size={16} /></button></span></div><div className="gift-footer"><span>{gift.categoryName}</span><strong>{gift.priceLabel}</strong></div>{gift.dependenciesLabel ? <div className="gift-dependency">Needs: {gift.dependenciesLabel}</div> : null}{gift.linkUrl ? <a className="gift-link" href={normaliseLink(gift.linkUrl)} rel="noreferrer" target="_blank">View inspiration <ArrowRight size={15} /></a> : null}</div>
+                    <div className="gift-copy"><div className="gift-title-row"><div>{gift.status ? <span className="gift-status" style={{ "--tag-color": gift.statusColor } as CSSProperties}>{gift.status}</span> : null}<h3>{gift.title}</h3><p>{gift.description || "No description added."}</p></div><span className="gift-card-actions"><button aria-label={`Edit ${gift.title}`} className="delete-button" onClick={() => editGift(gift.id)} title="Edit gift" type="button"><BookOpen size={16} /></button><button aria-label={`Remove ${gift.title}`} className="delete-button" onClick={() => deleteGift(gift.id)} title="Remove gift" type="button"><Trash2 size={16} /></button></span></div><div className="gift-footer"><span className="gift-category" style={{ "--tag-color": gift.categoryColor } as CSSProperties}>{gift.categoryName}</span><strong>{gift.priceLabel}</strong></div>{gift.dependenciesLabel ? <div className="gift-dependency">Needs: {gift.dependenciesLabel}</div> : null}{gift.linkUrl ? <a className="gift-link" href={normaliseLink(gift.linkUrl)} rel="noreferrer" target="_blank">View inspiration <ArrowRight size={15} /> </a> : null}</div>
                 </article>
             ))}</div>
         </section>
     );
 }
 
-type Option = { id: string; name: string };
-function OptionSettings({ title, value, placeholder, onChange, onAdd, options, onDelete }: { title: string; value: string; placeholder: string; onChange: (value: string) => void; onAdd: () => void; options: Option[]; onDelete: (id: string) => void }) {
-    return <div className="settings-group"><strong>{title}</strong><div className="settings-add"><input aria-label={placeholder} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} value={value} /><button aria-label={`Add ${title.slice(0, -1).toLowerCase()}`} className="small-button" onClick={onAdd} type="button"><Plus size={16} /></button></div>{options.map((option) => <div className="setting-option" key={option.id}><span>{option.name}</span><button aria-label={`Delete ${option.name}`} className="delete-button" onClick={() => onDelete(option.id)} title={`Delete ${title.slice(0, -1).toLowerCase()}`} type="button"><Trash2 size={15} /></button></div>)}</div>;
+type Option = { id: string; name: string; color?: string };
+function ColorPalette({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+    return <div aria-label={label} className="color-palette" role="radiogroup">{themeColors.map((color) => <button aria-label={color.name} aria-pressed={value === color.value} className={`palette-swatch${value === color.value ? " selected" : ""}`} key={color.value} onClick={() => onChange(color.value)} style={{ backgroundColor: color.value }} title={color.name} type="button" />)}</div>;
+}
+
+function OptionSettings({ title, value, placeholder, onChange, onAdd, options, onDelete, onOptionColorChange }: { title: string; value: string; placeholder: string; onChange: (value: string) => void; onAdd: () => void; options: Option[]; onDelete: (id: string) => void; onOptionColorChange: (id: string, color: string) => void }) {
+    return <div className="settings-group"><strong>{title}</strong><div className="settings-add"><input aria-label={placeholder} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} value={value} /><button aria-label={`Add ${title.slice(0, -1).toLowerCase()}`} className="small-button" onClick={onAdd} type="button"><Plus size={16} /></button></div>{options.map((option) => <div className="setting-option" key={option.id}><span className="setting-option-name"><span className="option-swatch" style={{ backgroundColor: option.color ?? "#e5c7b8" }} />{option.name}</span><span className="setting-option-actions"><ColorPalette label={`${option.name} color`} value={option.color ?? "#e5c7b8"} onChange={(color) => onOptionColorChange(option.id, color)} /><button aria-label={`Delete ${option.name}`} className="delete-button" onClick={() => onDelete(option.id)} title={`Delete ${title.slice(0, -1).toLowerCase()}`} type="button"><Trash2 size={15} /></button></span></div>)}</div>;
 }
 
 function GiftForm({ registry, editingGiftId, newGift, newCategory, newStatus, setNewGift, setShowAddGift, setNewCategory, setNewStatus, addGift, addCategory, addStatus, handleImageFile }: { registry: Registry; editingGiftId: string | null; newGift: GiftDraft; newCategory: string; newStatus: string; setNewGift: Dispatch<SetStateAction<GiftDraft>>; setShowAddGift: (value: boolean) => void; setNewCategory: (value: string) => void; setNewStatus: (value: string) => void; addGift: (event: FormEvent<HTMLFormElement>) => void; addCategory: (assignToGift?: boolean) => void; addStatus: (assignToGift?: boolean) => void; handleImageFile: (event: ChangeEvent<HTMLInputElement>) => void }) {

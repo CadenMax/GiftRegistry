@@ -6,11 +6,13 @@ export type GiftGiverSortOption = SortOption | 'claim-state';
 export type Category = {
   id: string;
   name: string;
+  color?: string;
 };
 
 export type Status = {
   id: string;
   name: string;
+  color?: string;
 };
 
 export type Gift = {
@@ -68,7 +70,9 @@ export type RecipientView = {
     linkUrl?: string;
     priceLabel: string;
     categoryName: string;
+    categoryColor?: string;
     status?: string;
+    statusColor?: string;
     dependenciesLabel: string;
   }>;
 };
@@ -83,7 +87,9 @@ export type GiftGiverView = {
     imageUrl?: string;
     priceLabel: string;
     categoryName: string;
+    categoryColor?: string;
     status?: string;
+    statusColor?: string;
     dependenciesLabel: string;
     claimState: ClaimState | 'available';
     claimLabel: string;

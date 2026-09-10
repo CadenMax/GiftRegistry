@@ -104,6 +104,8 @@ function App() {
   const [copied, setCopied] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [newStatus, setNewStatus] = useState("");
+  const [newCategoryColor, setNewCategoryColor] = useState("#e5c7b8");
+  const [newStatusColor, setNewStatusColor] = useState("#d9e7b8");
   const [showListSettings, setShowListSettings] = useState(false);
   const [authMode, setAuthMode] = useState<"create" | "sign-in">("create");
   const [authName, setAuthName] = useState("");
@@ -283,10 +285,11 @@ function App() {
       ...current,
       categories: current.categories.some((category) => category.id === id)
         ? current.categories
-        : [...current.categories, { id, name: newCategory.trim() }],
+        : [...current.categories, { id, name: newCategory.trim(), color: newCategoryColor }],
     }));
     if (assignToGift) setNewGift((current) => ({ ...current, categoryId: id }));
     setNewCategory("");
+    setNewCategoryColor("#e5c7b8");
   };
 
   const addStatus = (assignToGift = true) => {
@@ -296,10 +299,29 @@ function App() {
       ...current,
       statuses: current.statuses.some((status) => status.id === id)
         ? current.statuses
-        : [...current.statuses, { id, name: newStatus.trim() }],
+        : [...current.statuses, { id, name: newStatus.trim(), color: newStatusColor }],
     }));
     if (assignToGift) setNewGift((current) => ({ ...current, status: id }));
     setNewStatus("");
+    setNewStatusColor("#d9e7b8");
+  };
+
+  const updateCategoryColor = (categoryId: string, color: string) => {
+    setRegistry((current) => ({
+      ...current,
+      categories: current.categories.map((category) =>
+        category.id === categoryId ? { ...category, color } : category,
+      ),
+    }));
+  };
+
+  const updateStatusColor = (statusId: string, color: string) => {
+    setRegistry((current) => ({
+      ...current,
+      statuses: current.statuses.map((status) =>
+        status.id === statusId ? { ...status, color } : status,
+      ),
+    }));
   };
 
   const deleteCategory = (categoryId: string) => {
@@ -424,7 +446,9 @@ function App() {
     } else {
       setActiveRegistryId("");
       setListSetupMode("create");
-      setShowListSetup(true);
+      setListName("");
+      setListOccasion("");
+      setShowListSetup(false);
     }
   };
 
@@ -491,7 +515,7 @@ function App() {
     );
   }
 
-  if (account && !sharedRegistry && workspace === "recipient" && (showListSetup || !registry.listName.trim())) {
+  if (account && !sharedRegistry && workspace === "recipient" && showListSetup) {
     return (
       <ListSetup
         listName={listName}
@@ -583,6 +607,8 @@ function App() {
           addStatus={addStatus}
           deleteCategory={deleteCategory}
           deleteStatus={deleteStatus}
+          updateCategoryColor={updateCategoryColor}
+          updateStatusColor={updateStatusColor}
           editGift={editGift}
           deleteGift={deleteGift}
           copyCode={copyCode}
