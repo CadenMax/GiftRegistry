@@ -8,7 +8,7 @@ Personalised gift registry foundations for birthdays, Christmas, anniversaries, 
 - A mobile-first, blank-canvas registry experience for two roles:
   - **Recipient**: manages and previews a wishlist without seeing claim data
   - **Gift giver**: uses an access code, browses gifts, and marks items as considering or claimed
-- Recipient account creation and sign-in foundation with account-scoped local persistence
+- Recipient account creation and sign-in with SQL-backed persistence
 - A privacy-first projection layer that keeps claim data out of recipient-facing responses
 - Flexible gift data with category, priority, status, image, external link, price, and multi-item dependency support
 - Sorting and filtering foundations designed to grow with a real backend later
@@ -33,9 +33,29 @@ This mirrors the intended backend/API design: recipients should never receive pr
 
 The starter registry intentionally contains no gift items. Add a first gift from the recipient workspace, then share the generated access code with gift givers.
 
-## Account foundation
+## SQL persistence
 
-The current frontend prototype stores recipient accounts, sessions, and registries in browser `localStorage` so registry changes are associated with the signed-in account. Passwords are hashed with the browser Web Crypto API before local storage. This is intentionally a replaceable prototype boundary, not production authentication; a backend should own account records, password hashing, sessions, and authorisation before deployment.
+The frontend does not store accounts, sessions, passwords, or registries in browser `localStorage`. The Node server owns authentication and persistence:
+
+- SQLite database: `data/kindlist.sqlite` (created automatically and ignored by Git)
+- Passwords: salted `scrypt` hashes stored in SQL
+- Sessions: random HttpOnly cookies backed by the `sessions` table
+- Registries: account-scoped records in the `registries` table
+
+Node 22.5 or newer is required because the server uses Node's built-in `node:sqlite` module. For local development, run the API and Vite in separate terminals:
+
+```bash
+npm run server
+npm run dev
+```
+
+For a single hosted process, build the frontend and start the server:
+
+```bash
+npm start
+```
+
+Set `PORT` when the host provides a port, and persist the `data/` directory or configure a managed SQL database before deploying multiple server instances. The current adapter uses SQLite; the API boundary can be moved to PostgreSQL or another hosted SQL provider without exposing database credentials to the browser.
 
 ## Development
 

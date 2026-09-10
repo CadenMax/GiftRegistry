@@ -15,117 +15,64 @@ export type ProfileDetails = {
   newPassword: string;
 };
 
-type StoredAccount = RecipientAccount & {
-  passwordDigest: string;
-};
+type ApiResponse<T> = T & { error?: string };
 
-const accountsKey = 'kindlist.accounts';
-const sessionKey = 'kindlist.session';
-const registryKey = (accountId: string) => `kindlist.registry.${accountId}`;
-const registriesKey = (accountId: string) => `kindlist.registries.${accountId}`;
-
-function readJson<T>(key: string, fallback: T): T {
-  try {
-    const value = window.localStorage.getItem(key);
-    return value ? (JSON.parse(value) as T) : fallback;
-  } catch {
-    return fallback;
-  }
+async function request<T>(path: string, options: RequestInit = {}) {
+  const response = await fetch(path, {
+    ...options,
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+  });
+  const body = await response.json() as ApiResponse<T>;
+  if (!response.ok) throw new Error(body.error ?? 'The server could not complete that request.');
+  return body;
 }
 
-async function digestPassword(password: string) {
-  const encoded = new TextEncoder().encode(password);
-  const digest = await window.crypto.subtle.digest('SHA-256', encoded);
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
-export function getStoredSession() {
-  return readJson<RecipientAccount | null>(sessionKey, null);
+export async function getStoredSession() {
+  const response = await request<{ account: RecipientAccount | null }>('/api/session');
+  return response.account;
 }
 
 function normaliseRegistry(registry: Registry) {
   return { ...registry, statuses: registry.statuses ?? [] };
 }
 
-export function getAccountRegistries(account: RecipientAccount) {
-  const storedRegistries = readJson<Registry[] | null>(registriesKey(account.id), null);
-  if (storedRegistries) return storedRegistries.map(normaliseRegistry);
-
-  const legacyRegistry = readJson<Registry | null>(registryKey(account.id), null);
-  return legacyRegistry ? [normaliseRegistry(legacyRegistry)] : [];
+export async function getAccountRegistries(_account: RecipientAccount) {
+  const response = await request<{ registries: Registry[] }>('/api/registries');
+  return response.registries.map(normaliseRegistry);
 }
 
 export async function createAccount(name: string, email: string, password: string) {
-  const accounts = readJson<StoredAccount[]>(accountsKey, []);
-  const normalisedEmail = email.trim().toLowerCase();
-  if (accounts.some((account) => account.email === normalisedEmail)) {
-    throw new Error('An account with that email already exists.');
-  }
-
-  const account: RecipientAccount = { id: crypto.randomUUID(), name: name.trim(), email: normalisedEmail };
-  const passwordDigest = await digestPassword(password);
-  window.localStorage.setItem(accountsKey, JSON.stringify([...accounts, { ...account, passwordDigest }]));
-  saveAccountRegistries(account, []);
-  saveSession(account);
-  return account;
+  const response = await request<{ account: RecipientAccount }>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ name, email, password }),
+  });
+  return response.account;
 }
 
 export async function signIn(email: string, password: string) {
-  const accounts = readJson<StoredAccount[]>(accountsKey, []);
-  const account = accounts.find((candidate) => candidate.email === email.trim().toLowerCase());
-  if (!account || account.passwordDigest !== await digestPassword(password)) {
-    throw new Error('The email or password is incorrect.');
-  }
-
-  const { passwordDigest: _passwordDigest, ...profile } = account;
-  saveSession(profile);
-  return profile;
-}
-
-export function saveSession(account: RecipientAccount) {
-  window.localStorage.setItem(sessionKey, JSON.stringify(account));
+  const response = await request<{ account: RecipientAccount }>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+  return response.account;
 }
 
 export async function updateAccountProfile(account: RecipientAccount, details: ProfileDetails) {
-  const accounts = readJson<StoredAccount[]>(accountsKey, []);
-  const accountIndex = accounts.findIndex((candidate) => candidate.id === account.id);
-  if (accountIndex < 0) throw new Error('This account could not be found.');
-
-  const name = details.name.trim();
-  const email = details.email.trim().toLowerCase();
-  if (!name || !email) throw new Error('Name and email are required.');
-  if (accounts.some((candidate) => candidate.email === email && candidate.id !== account.id)) {
-    throw new Error('An account with that email already exists.');
-  }
-
-  const storedAccount = accounts[accountIndex];
-  let passwordDigest = storedAccount.passwordDigest;
-  if (details.newPassword) {
-    if (!details.currentPassword || passwordDigest !== await digestPassword(details.currentPassword)) {
-      throw new Error('Your current password is incorrect.');
-    }
-    if (details.newPassword.length < 8) {
-      throw new Error('Your new password must be at least 8 characters.');
-    }
-    passwordDigest = await digestPassword(details.newPassword);
-  }
-
-  const nextAccount: RecipientAccount = {
-    id: account.id,
-    name,
-    email,
-    avatarUrl: details.avatarUrl,
-  };
-  accounts[accountIndex] = { ...nextAccount, passwordDigest };
-  window.localStorage.setItem(accountsKey, JSON.stringify(accounts));
-  saveSession(nextAccount);
-  return nextAccount;
+  const response = await request<{ account: RecipientAccount }>('/api/profile', {
+    method: 'PATCH',
+    body: JSON.stringify({ accountId: account.id, details }),
+  });
+  return response.account;
 }
 
-export function clearSession() {
-  window.localStorage.removeItem(sessionKey);
+export async function clearSession() {
+  await request<{ ok: boolean }>('/api/auth/logout', { method: 'POST' });
 }
 
-export function saveAccountRegistries(account: RecipientAccount, registries: Registry[]) {
-  window.localStorage.setItem(registriesKey(account.id), JSON.stringify(registries));
+export async function saveAccountRegistries(_account: RecipientAccount, registries: Registry[]) {
+  await request<{ registries: Registry[] }>('/api/registries', {
+    method: 'PUT',
+    body: JSON.stringify({ registries }),
+  });
 }

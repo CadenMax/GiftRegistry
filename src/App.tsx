@@ -63,18 +63,10 @@ function normaliseLink(link: string) {
 }
 
 function App() {
-  const [account, setAccount] = useState<RecipientAccount | null>(() =>
-    getStoredSession(),
-  );
-  const storedAccount = getStoredSession();
-  const [registries, setRegistries] = useState<Registry[]>(() => {
-    return storedAccount
-      ? getAccountRegistries(storedAccount)
-      : [];
-  });
-  const [activeRegistryId, setActiveRegistryId] = useState(
-    () => (storedAccount ? getAccountRegistries(storedAccount)[0]?.id ?? "" : ""),
-  );
+  const [account, setAccount] = useState<RecipientAccount | null>(null);
+  const [registries, setRegistries] = useState<Registry[]>([]);
+  const [activeRegistryId, setActiveRegistryId] = useState("");
+  const [sessionReady, setSessionReady] = useState(false);
   const registry = registries.find((item) => item.id === activeRegistryId) ?? initialRegistry;
   const setRegistry = (update: SetStateAction<Registry>) => {
     setRegistries((current) =>
@@ -121,8 +113,29 @@ function App() {
   const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => {
-    if (account) saveAccountRegistries(account, registries);
-  }, [account, registries]);
+    let cancelled = false;
+    const restoreSession = async () => {
+      try {
+        const storedAccount = await getStoredSession();
+        if (cancelled) return;
+        setAccount(storedAccount);
+        if (storedAccount) {
+          const nextRegistries = await getAccountRegistries(storedAccount);
+          if (cancelled) return;
+          setRegistries(nextRegistries);
+          setActiveRegistryId(nextRegistries[0]?.id ?? "");
+        }
+      } finally {
+        if (!cancelled) setSessionReady(true);
+      }
+    };
+    void restoreSession();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (account && sessionReady) void saveAccountRegistries(account, registries);
+  }, [account, registries, sessionReady]);
 
   const recipientView = useMemo(
     () =>
@@ -310,7 +323,7 @@ function App() {
             )
           : await signIn(authEmail, authPassword);
       setAccount(nextAccount);
-      const nextRegistries = getAccountRegistries(nextAccount);
+      const nextRegistries = await getAccountRegistries(nextAccount);
       setRegistries(nextRegistries);
       setActiveRegistryId(nextRegistries[0]?.id ?? "");
       setAuthPassword("");
@@ -410,6 +423,10 @@ function App() {
     setListName("");
     setListOccasion("");
   };
+
+  if (!sessionReady) {
+    return <main className="app-shell" />;
+  }
 
   if (!account && workspace === "recipient") {
     return (

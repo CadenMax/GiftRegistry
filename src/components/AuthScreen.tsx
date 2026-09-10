@@ -118,8 +118,8 @@ export function AuthScreen({
                         <ArrowRight size={17} />
                     </button>
                     <small>
-                        For now, this prototype stores your account locally in this
-                        browser. A production backend can replace this boundary later.
+                        Your account and lists are stored securely on the application
+                        server, so you can access them from any device.
                     </small>
                 </form>
             </section>
