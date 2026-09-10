@@ -274,7 +274,7 @@ function App() {
                 onChange={(event) =>
                   setGiftGiverProfile((currentProfile) => ({
                     ...currentProfile,
-                    displayName: event.target.value || 'Taylor',
+                    displayName: event.target.value,
                   }))
                 }
                 value={giftGiverProfile.displayName}

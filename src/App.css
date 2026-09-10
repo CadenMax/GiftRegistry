@@ -152,6 +152,14 @@ button:disabled {
   color: #8a4f42;
 }
 
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 3px solid #8a4f42;
+  outline-offset: 3px;
+}
+
 .access-form {
   display: grid;
   gap: 1rem;
