@@ -4,6 +4,15 @@ export type RecipientAccount = {
   id: string;
   name: string;
   email: string;
+  avatarUrl?: string;
+};
+
+export type ProfileDetails = {
+  name: string;
+  email: string;
+  avatarUrl?: string;
+  currentPassword: string;
+  newPassword: string;
 };
 
 type StoredAccount = RecipientAccount & {
@@ -13,6 +22,7 @@ type StoredAccount = RecipientAccount & {
 const accountsKey = 'kindlist.accounts';
 const sessionKey = 'kindlist.session';
 const registryKey = (accountId: string) => `kindlist.registry.${accountId}`;
+const registriesKey = (accountId: string) => `kindlist.registries.${accountId}`;
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -33,19 +43,19 @@ export function getStoredSession() {
   return readJson<RecipientAccount | null>(sessionKey, null);
 }
 
-export function getAccountRegistry(account: RecipientAccount, initialRegistry: Registry) {
-  const storedRegistry = readJson<Registry | null>(registryKey(account.id), null);
-  return storedRegistry ? {
-    ...storedRegistry,
-    statuses: storedRegistry.statuses ?? [],
-  } : {
-    ...initialRegistry,
-    ownerName: account.name,
-    accessCode: `${account.id.slice(-4).toUpperCase()}-LIST`,
-  };
+function normaliseRegistry(registry: Registry) {
+  return { ...registry, statuses: registry.statuses ?? [] };
 }
 
-export async function createAccount(name: string, email: string, password: string, initialRegistry: Registry) {
+export function getAccountRegistries(account: RecipientAccount) {
+  const storedRegistries = readJson<Registry[] | null>(registriesKey(account.id), null);
+  if (storedRegistries) return storedRegistries.map(normaliseRegistry);
+
+  const legacyRegistry = readJson<Registry | null>(registryKey(account.id), null);
+  return legacyRegistry ? [normaliseRegistry(legacyRegistry)] : [];
+}
+
+export async function createAccount(name: string, email: string, password: string) {
   const accounts = readJson<StoredAccount[]>(accountsKey, []);
   const normalisedEmail = email.trim().toLowerCase();
   if (accounts.some((account) => account.email === normalisedEmail)) {
@@ -55,7 +65,7 @@ export async function createAccount(name: string, email: string, password: strin
   const account: RecipientAccount = { id: crypto.randomUUID(), name: name.trim(), email: normalisedEmail };
   const passwordDigest = await digestPassword(password);
   window.localStorage.setItem(accountsKey, JSON.stringify([...accounts, { ...account, passwordDigest }]));
-  saveAccountRegistry(account, { ...initialRegistry, ownerName: account.name, accessCode: `${account.id.slice(-4).toUpperCase()}-LIST` });
+  saveAccountRegistries(account, []);
   saveSession(account);
   return account;
 }
@@ -76,10 +86,46 @@ export function saveSession(account: RecipientAccount) {
   window.localStorage.setItem(sessionKey, JSON.stringify(account));
 }
 
+export async function updateAccountProfile(account: RecipientAccount, details: ProfileDetails) {
+  const accounts = readJson<StoredAccount[]>(accountsKey, []);
+  const accountIndex = accounts.findIndex((candidate) => candidate.id === account.id);
+  if (accountIndex < 0) throw new Error('This account could not be found.');
+
+  const name = details.name.trim();
+  const email = details.email.trim().toLowerCase();
+  if (!name || !email) throw new Error('Name and email are required.');
+  if (accounts.some((candidate) => candidate.email === email && candidate.id !== account.id)) {
+    throw new Error('An account with that email already exists.');
+  }
+
+  const storedAccount = accounts[accountIndex];
+  let passwordDigest = storedAccount.passwordDigest;
+  if (details.newPassword) {
+    if (!details.currentPassword || passwordDigest !== await digestPassword(details.currentPassword)) {
+      throw new Error('Your current password is incorrect.');
+    }
+    if (details.newPassword.length < 8) {
+      throw new Error('Your new password must be at least 8 characters.');
+    }
+    passwordDigest = await digestPassword(details.newPassword);
+  }
+
+  const nextAccount: RecipientAccount = {
+    id: account.id,
+    name,
+    email,
+    avatarUrl: details.avatarUrl,
+  };
+  accounts[accountIndex] = { ...nextAccount, passwordDigest };
+  window.localStorage.setItem(accountsKey, JSON.stringify(accounts));
+  saveSession(nextAccount);
+  return nextAccount;
+}
+
 export function clearSession() {
   window.localStorage.removeItem(sessionKey);
 }
 
-export function saveAccountRegistry(account: RecipientAccount, registry: Registry) {
-  window.localStorage.setItem(registryKey(account.id), JSON.stringify(registry));
+export function saveAccountRegistries(account: RecipientAccount, registries: Registry[]) {
+  window.localStorage.setItem(registriesKey(account.id), JSON.stringify(registries));
 }

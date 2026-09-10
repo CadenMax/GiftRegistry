@@ -2,13 +2,16 @@ import {
   ArrowRight,
   BookOpen,
   Gift as GiftIcon,
+  LogOut,
   UserRound,
   UsersRound,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type SetStateAction } from "react";
 import "./App.css";
 import { AuthScreen } from "./components/AuthScreen";
 import { GiverWorkspace } from "./components/GiverWorkspace";
+import { ListSetup } from "./components/ListSetup";
+import { ProfileScreen } from "./components/ProfileScreen";
 import { RecipientWorkspace } from "./components/RecipientWorkspace";
 import { registry as initialRegistry } from "./data/registry";
 import {
@@ -19,12 +22,13 @@ import {
 import {
   clearSession,
   createAccount,
-  getAccountRegistry,
+  getAccountRegistries,
   getStoredSession,
-  saveAccountRegistry,
+  saveAccountRegistries,
   signIn,
+  updateAccountProfile,
 } from "./lib/accountStore";
-import type { RecipientAccount } from "./lib/accountStore";
+import type { ProfileDetails, RecipientAccount } from "./lib/accountStore";
 import type {
   ClaimFilter,
   ClaimState,
@@ -62,12 +66,27 @@ function App() {
   const [account, setAccount] = useState<RecipientAccount | null>(() =>
     getStoredSession(),
   );
-  const [registry, setRegistry] = useState<Registry>(() => {
-    const storedAccount = getStoredSession();
+  const storedAccount = getStoredSession();
+  const [registries, setRegistries] = useState<Registry[]>(() => {
     return storedAccount
-      ? getAccountRegistry(storedAccount, initialRegistry)
-      : initialRegistry;
+      ? getAccountRegistries(storedAccount)
+      : [];
   });
+  const [activeRegistryId, setActiveRegistryId] = useState(
+    () => (storedAccount ? getAccountRegistries(storedAccount)[0]?.id ?? "" : ""),
+  );
+  const registry = registries.find((item) => item.id === activeRegistryId) ?? initialRegistry;
+  const setRegistry = (update: SetStateAction<Registry>) => {
+    setRegistries((current) =>
+      current.map((item) =>
+        item.id === activeRegistryId
+          ? typeof update === "function"
+            ? update(item)
+            : update
+          : item,
+      ),
+    );
+  };
   const [workspace, setWorkspace] = useState<Workspace>("recipient");
   const [recipientCategory, setRecipientCategory] = useState("all");
   const [recipientSort, setRecipientSort] = useState<SortOption>("recent");
@@ -95,10 +114,15 @@ function App() {
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authError, setAuthError] = useState("");
+  const [listName, setListName] = useState("");
+  const [listOccasion, setListOccasion] = useState("");
+  const [showListSetup, setShowListSetup] = useState(false);
+  const [listSetupMode, setListSetupMode] = useState<"create" | "edit">("create");
+  const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => {
-    if (account) saveAccountRegistry(account, registry);
-  }, [account, registry]);
+    if (account) saveAccountRegistries(account, registries);
+  }, [account, registries]);
 
   const recipientView = useMemo(
     () =>
@@ -283,11 +307,12 @@ function App() {
               authName,
               authEmail,
               authPassword,
-              initialRegistry,
             )
           : await signIn(authEmail, authPassword);
       setAccount(nextAccount);
-      setRegistry(getAccountRegistry(nextAccount, initialRegistry));
+      const nextRegistries = getAccountRegistries(nextAccount);
+      setRegistries(nextRegistries);
+      setActiveRegistryId(nextRegistries[0]?.id ?? "");
       setAuthPassword("");
     } catch (error) {
       setAuthError(
@@ -302,7 +327,88 @@ function App() {
     clearSession();
     setAccount(null);
     setWorkspace("recipient");
-    setRegistry(initialRegistry);
+    setRegistries([]);
+    setActiveRegistryId("");
+    setShowListSetup(false);
+    setListSetupMode("create");
+    setShowProfile(false);
+  };
+
+  const selectRegistry = (registryId: string) => {
+    setActiveRegistryId(registryId);
+    setWorkspace("recipient");
+    setIsUnlocked(false);
+    setAccessError("");
+  };
+
+  const openNewList = () => {
+    setListName("");
+    setListOccasion("");
+    setListSetupMode("create");
+    setShowListSetup(true);
+  };
+
+  const openEditList = () => {
+    setListName(registry.listName);
+    setListOccasion(registry.occasion);
+    setListSetupMode("edit");
+    setShowListSetup(true);
+  };
+
+  const deleteActiveList = () => {
+    if (!window.confirm(`Delete "${registry.listName}"? This will remove all gifts on this list.`)) return;
+    const remaining = registries.filter((item) => item.id !== activeRegistryId);
+    setRegistries(remaining);
+    setIsUnlocked(false);
+    setAccessError("");
+    if (remaining.length > 0) {
+      setActiveRegistryId(remaining[0].id);
+    } else {
+      setActiveRegistryId("");
+      setListSetupMode("create");
+      setShowListSetup(true);
+    }
+  };
+
+  const saveProfile = async (details: ProfileDetails) => {
+    if (!account) return;
+    const nextAccount = await updateAccountProfile(account, details);
+    setAccount(nextAccount);
+    setRegistries((current) =>
+      current.map((item) => ({ ...item, ownerName: nextAccount.name })),
+    );
+  };
+
+  const saveListDetails = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const name = listName.trim();
+    if (!name || !account) return;
+    if (listSetupMode === "edit") {
+      setRegistry((current) => ({
+        ...current,
+        listName: name,
+        occasion: listOccasion.trim(),
+      }));
+      setShowListSetup(false);
+      setListSetupMode("create");
+      setListName("");
+      setListOccasion("");
+      return;
+    }
+    const newRegistry: Registry = {
+      ...initialRegistry,
+      id: `registry-${Date.now()}`,
+      listName: name,
+      occasion: listOccasion.trim(),
+      ownerName: account.name,
+      accessCode: crypto.randomUUID().slice(0, 6).toUpperCase(),
+    };
+    setRegistries((current) => [...current, newRegistry]);
+    setActiveRegistryId(newRegistry.id);
+    setShowListSetup(false);
+    setListSetupMode("create");
+    setListName("");
+    setListOccasion("");
   };
 
   if (!account && workspace === "recipient") {
@@ -323,6 +429,37 @@ function App() {
     );
   }
 
+  if (account && (showListSetup || !registry.listName.trim())) {
+    return (
+      <ListSetup
+        listName={listName}
+        occasion={listOccasion}
+        mode={listSetupMode}
+        onListNameChange={setListName}
+        onOccasionChange={setListOccasion}
+        onSubmit={saveListDetails}
+        onCancel={() => {
+          setShowListSetup(false);
+          setListSetupMode("create");
+          setListName("");
+          setListOccasion("");
+        }}
+      />
+    );
+  }
+
+  if (account && showProfile) {
+    return (
+      <ProfileScreen
+        account={account}
+        listCount={registries.length}
+        onBack={() => setShowProfile(false)}
+        onSignOut={signOut}
+        onSave={saveProfile}
+      />
+    );
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar" id="top">
@@ -333,10 +470,12 @@ function App() {
         <div className="topbar-actions">
           {account ? (
             <>
-              <button className="icon-button" onClick={signOut} title="Sign out" type="button">
-                <UserRound size={18} />
+              <button aria-label="Open profile" className="icon-button" onClick={() => setShowProfile(true)} title="Profile" type="button">
+                {account.avatarUrl ? <img alt="" src={account.avatarUrl} /> : <UserRound size={18} />}
               </button>
-              <span className="avatar">{account.name.slice(0, 2).toUpperCase()}</span>
+              <button aria-label="Log out" className="icon-button" onClick={signOut} title="Log out" type="button">
+                <LogOut size={18} />
+              </button>
             </>
           ) : (
             <button className="text-button" onClick={() => setWorkspace("recipient")} type="button">
@@ -356,6 +495,8 @@ function App() {
       {workspace === "recipient" ? (
         <RecipientWorkspace
           registry={registry}
+          registries={registries}
+          activeRegistryId={activeRegistryId}
           recipientView={recipientView}
           totalValue={totalValue}
           recipientCategory={recipientCategory}
@@ -385,6 +526,10 @@ function App() {
           copyCode={copyCode}
           handleImageFile={handleImageFile}
           normaliseLink={normaliseLink}
+          onSelectList={selectRegistry}
+          onNewList={openNewList}
+          onEditList={openEditList}
+          onDeleteList={deleteActiveList}
         />
       ) : (
         <GiverWorkspace

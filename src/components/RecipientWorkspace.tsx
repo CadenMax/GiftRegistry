@@ -5,6 +5,7 @@ import {
     ChevronDown,
     Gift as GiftIcon,
     Link as LinkIcon,
+    Pencil,
     Plus,
     Search,
     Share2,
@@ -17,6 +18,8 @@ type GiftDraft = Omit<Gift, "id" | "addedAt">;
 
 type RecipientWorkspaceProps = {
     registry: Registry;
+    registries: Registry[];
+    activeRegistryId: string;
     recipientView: RecipientView;
     totalValue: number;
     recipientCategory: string;
@@ -46,10 +49,16 @@ type RecipientWorkspaceProps = {
     copyCode: () => void;
     handleImageFile: (event: ChangeEvent<HTMLInputElement>) => void;
     normaliseLink: (link: string) => string;
+    onSelectList: (registryId: string) => void;
+    onNewList: () => void;
+    onEditList: () => void;
+    onDeleteList: () => void;
 };
 
 export function RecipientWorkspace({
     registry,
+    registries,
+    activeRegistryId,
     recipientView,
     totalValue,
     recipientCategory,
@@ -79,49 +88,40 @@ export function RecipientWorkspace({
     copyCode,
     handleImageFile,
     normaliseLink,
+    onSelectList,
+    onNewList,
+    onEditList,
+    onDeleteList,
 }: RecipientWorkspaceProps) {
     return (
         <section className="workspace recipient-workspace">
             <div className="section-heading">
                 <div>
-                    <span className="eyebrow">Your {registry.occasion.toLowerCase()}</span>
+                    <span className="eyebrow">{registry.occasion ? `Your ${registry.occasion.toLowerCase()}` : "Your private list"}</span>
                     <h2>{registry.listName}</h2>
                     <p>Start adding gifts you would love to receive.</p>
+                    <div className="list-details-controls">
+                        <select aria-label="Choose list" className="list-picker" onChange={(event) => onSelectList(event.target.value)} value={activeRegistryId}>
+                            {registries.map((item) => <option key={item.id} value={item.id}>{item.listName}</option>)}
+                        </select>
+                        <button aria-label="Edit list details" className="icon-button" onClick={onEditList} title="Edit list details" type="button"><Pencil size={15} /></button>
+                        <button aria-label="Delete list" className="icon-button" onClick={onDeleteList} title="Delete list" type="button"><Trash2 size={15} /></button>
+                        <button className="text-button" onClick={onNewList} type="button"><Plus size={15} /> New list</button>
+                    </div>
                 </div>
-                <button
-                    className="primary-button"
-                    onClick={() => {
-                        setNewGift({
-                            title: "",
-                            description: "",
-                            imageUrl: "",
-                            linkUrl: "",
-                            price: undefined,
-                            categoryId: "",
-                            status: "",
-                            dependsOn: [],
-                            dependencyText: "",
-                        });
-                        setEditingGiftId(null);
-                        setShowAddGift(true);
-                    }}
-                    type="button"
-                >
-                    <Plus size={17} /> Add a gift
-                </button>
+                <div className="share-compact">
+                    <Share2 size={16} />
+                    <span>Share</span>
+                    <code>{registry.accessCode || "Not set"}</code>
+                    <button aria-label="Copy access code" className="copy-button" disabled={!registry.accessCode} onClick={copyCode} type="button">
+                        {copied ? <Check size={16} /> : <LinkIcon size={16} />}
+                    </button>
+                </div>
             </div>
             <div className="stats-row">
                 <div><strong>{registry.gifts.length}</strong><span>little wishes</span></div>
                 <div><strong>${totalValue}</strong><span>all together</span></div>
                 <div><strong>{registry.categories.length}</strong><span>categories</span></div>
-            </div>
-            <div className="share-strip">
-                <div className="share-icon"><Share2 size={18} /></div>
-                <div><strong>Share your list</strong><p>Friends only need this code to coordinate.</p></div>
-                <code>{registry.accessCode}</code>
-                <button aria-label="Copy access code" className="copy-button" onClick={copyCode} type="button">
-                    {copied ? <Check size={17} /> : <LinkIcon size={17} />}
-                </button>
             </div>
             <button className="settings-toggle" onClick={() => setShowListSettings((visible) => !visible)} type="button">
                 {showListSettings ? "Hide list settings" : "Manage categories and statuses"} <ChevronDown size={16} />
@@ -156,6 +156,7 @@ export function RecipientWorkspace({
                 <div className="filter-label"><Search size={16} /><span>Browse wishes</span></div>
                 <label>Category<select value={recipientCategory} onChange={(event) => setRecipientCategory(event.target.value)}><option value="all">All categories</option>{recipientView.categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
                 <label>Sort by<select value={recipientSort} onChange={(event) => setRecipientSort(event.target.value as SortOption)}><option value="recent">Recently added</option><option value="price">Price</option><option value="name">Name</option></select></label>
+                <button className="primary-button add-gift-button" onClick={() => { setNewGift({ title: "", description: "", imageUrl: "", linkUrl: "", price: undefined, categoryId: "", status: "", dependsOn: [], dependencyText: "" }); setEditingGiftId(null); setShowAddGift(true); }} type="button"><Plus size={17} /> Add a gift</button>
             </div>
             <div className="privacy-note"><Check size={16} /><span>Private by design. This view never receives information about who is considering or buying anything.</span></div>
             {recipientView.gifts.length === 0 ? (
