@@ -2,6 +2,7 @@ export type Priority = 'low' | 'medium' | 'high';
 export type ClaimState = 'considering' | 'claimed';
 export type ClaimFilter = 'all' | 'available' | 'considering' | 'claimed';
 export type SortOption = 'priority' | 'price' | 'name' | 'category' | 'recent';
+export type GiftGiverSortOption = SortOption | 'claim-state';
 
 export type Category = {
   id: string;

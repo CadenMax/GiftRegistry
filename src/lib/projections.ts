@@ -3,6 +3,7 @@ import type {
   ClaimRecord,
   ClaimState,
   Gift,
+  GiftGiverSortOption,
   GiftGiverProfile,
   GiftGiverView,
   RecipientView,
@@ -88,11 +89,11 @@ function getGiftClaimSummary(claims: ClaimRecord[], giftId: string) {
 
 export function createRecipientView(
   registry: Registry,
-  filters: { category: string; sort: SortOption | string },
+  filters: { category: string; sort: SortOption },
 ): RecipientView {
   const visibleGifts = sortGifts(
     registry.gifts.filter((gift) => filters.category === 'all' || gift.categoryId === filters.category),
-    filters.sort as SortOption,
+    filters.sort,
   );
 
   return {
@@ -120,8 +121,8 @@ export function createGiftGiverView(
   claims: ClaimRecord[],
   filters: {
     category: string;
-    sort: SortOption | 'claim-state' | string;
-    claimFilter: ClaimFilter | string;
+    sort: GiftGiverSortOption;
+    claimFilter: ClaimFilter;
     dependenciesOnly: boolean;
   },
 ): GiftGiverView {
@@ -151,7 +152,7 @@ export function createGiftGiverView(
 
           return claimStateOrder[leftState] - claimStateOrder[rightState];
         })
-      : sortGifts(filteredGifts, filters.sort as SortOption);
+      : sortGifts(filteredGifts, filters.sort);
 
   return {
     listName: registry.listName,

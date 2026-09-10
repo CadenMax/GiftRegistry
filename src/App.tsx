@@ -12,7 +12,7 @@ import { useMemo, useState } from 'react';
 import './App.css';
 import { registry } from './data/registry';
 import { createGiftGiverView, createRecipientView, updateGiftClaim } from './lib/projections';
-import type { ClaimState, GiftGiverProfile } from './types';
+import type { ClaimFilter, ClaimState, GiftGiverProfile, GiftGiverSortOption, SortOption } from './types';
 
 const architectureHighlights = [
   {
@@ -59,10 +59,10 @@ function App() {
   });
   const [claimRecords, setClaimRecords] = useState(registry.claims);
   const [recipientCategory, setRecipientCategory] = useState('all');
-  const [recipientSort, setRecipientSort] = useState('priority');
+  const [recipientSort, setRecipientSort] = useState<SortOption>('priority');
   const [giverCategory, setGiverCategory] = useState('all');
-  const [giverSort, setGiverSort] = useState('claim-state');
-  const [giverClaimFilter, setGiverClaimFilter] = useState('all');
+  const [giverSort, setGiverSort] = useState<GiftGiverSortOption>('claim-state');
+  const [giverClaimFilter, setGiverClaimFilter] = useState<ClaimFilter>('all');
   const [giverDependenciesOnly, setGiverDependenciesOnly] = useState(false);
   const [accessError, setAccessError] = useState('');
 
@@ -182,7 +182,10 @@ function App() {
             </label>
             <label>
               Sort by
-              <select value={recipientSort} onChange={(event) => setRecipientSort(event.target.value)}>
+              <select
+                value={recipientSort}
+                onChange={(event) => setRecipientSort(event.target.value as SortOption)}
+              >
                 <option value="priority">Priority</option>
                 <option value="price">Price</option>
                 <option value="name">Name</option>
@@ -248,6 +251,8 @@ function App() {
             <label>
               Access code
               <input
+                aria-describedby={accessError ? 'access-code-error' : undefined}
+                aria-invalid={Boolean(accessError)}
                 onChange={(event) => setAccessCode(event.target.value)}
                 placeholder="Enter code"
                 value={accessCode}
@@ -283,7 +288,11 @@ function App() {
             <button type="submit">Unlock registry</button>
           </form>
 
-          {accessError ? <p className="error-message">{accessError}</p> : null}
+          {accessError ? (
+            <p className="error-message" id="access-code-error">
+              {accessError}
+            </p>
+          ) : null}
 
           {giftGiverView ? (
             <>
@@ -301,7 +310,10 @@ function App() {
                 </label>
                 <label>
                   Sort by
-                  <select value={giverSort} onChange={(event) => setGiverSort(event.target.value)}>
+                  <select
+                    value={giverSort}
+                    onChange={(event) => setGiverSort(event.target.value as GiftGiverSortOption)}
+                  >
                     <option value="claim-state">Claim status</option>
                     <option value="priority">Priority</option>
                     <option value="price">Price</option>
@@ -311,7 +323,10 @@ function App() {
                 </label>
                 <label>
                   Claim filter
-                  <select value={giverClaimFilter} onChange={(event) => setGiverClaimFilter(event.target.value)}>
+                  <select
+                    value={giverClaimFilter}
+                    onChange={(event) => setGiverClaimFilter(event.target.value as ClaimFilter)}
+                  >
                     <option value="all">All gifts</option>
                     <option value="available">Available</option>
                     <option value="considering">Considering</option>
@@ -330,8 +345,8 @@ function App() {
 
               <div className="giver-summary">
                 <p>
-                  Viewing <strong>{giftGiverView.listName}</strong> for {giftGiverProfile.displayName}. Claim details
-                  are visible here because this projection is designed for gift givers.
+                  Viewing <strong>{giftGiverView.listName}</strong> for {activeDisplayName}. Claim details are visible
+                  here because this projection is designed for gift givers.
                 </p>
               </div>
 
