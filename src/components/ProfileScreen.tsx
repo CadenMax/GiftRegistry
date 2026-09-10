@@ -50,7 +50,7 @@ export function ProfileScreen({ account, listCount, onBack, onSignOut, onSave }:
       <header className="topbar" id="top">
         <a className="brand" href="#top">
           <span className="brand-mark"><GiftIcon size={18} /></span>
-          Giftboard
+          HaulBoard
         </a>
         <button className="text-button" onClick={onBack} type="button">
           <ArrowLeft size={15} /> Back
@@ -92,7 +92,7 @@ export function ProfileScreen({ account, listCount, onBack, onSignOut, onSave }:
         </form>
       </section>
       <footer>
-        <span>Giftboard</span>
+        <span>HaulBoard</span>
         <span>Make a list. Share it.</span>
       </footer>
     </main>

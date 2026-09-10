@@ -1,6 +1,6 @@
-# GiftRegistry
+# HaulBoard
 
-Personalised gift registry foundations for birthdays, Christmas, anniversaries, and other thoughtful occasions.
+Shared gift lists for birthdays, Christmas, anniversaries, and any occasion that needs a haul.
 
 ## What this repository now includes
 

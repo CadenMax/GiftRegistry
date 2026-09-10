@@ -25,7 +25,7 @@ export function ListSetup({
       <header className="topbar" id="top">
         <a className="brand" href="#top">
           <span className="brand-mark"><GiftIcon size={18} /></span>
-          Giftboard
+          HaulBoard
         </a>
       </header>
       <section className="auth-layout">
@@ -58,7 +58,7 @@ export function ListSetup({
         </form>
       </section>
       <footer>
-        <span>Giftboard</span>
+        <span>HaulBoard</span>
         <span>Make a list. Share it.</span>
       </footer>
     </main>

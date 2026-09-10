@@ -551,7 +551,7 @@ function App() {
       <header className="topbar" id="top">
         <a className="brand" href="#top">
           <span className="brand-mark"><GiftIcon size={18} /></span>
-          Giftboard
+          HaulBoard
         </a>
         <div className="topbar-actions">
           {account ? (
@@ -641,7 +641,7 @@ function App() {
         />
       )}
       <footer>
-        <span>Giftboard</span>
+        <span>HaulBoard</span>
         <span>Make a list. Share it.</span>
       </footer>
     </main>

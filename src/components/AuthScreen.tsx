@@ -37,7 +37,7 @@ export function AuthScreen({
                     <span className="brand-mark">
                         <GiftIcon size={18} />
                     </span>
-                    Giftboard
+                    HaulBoard
                 </a>
                 <button className="text-button" onClick={onOpenGiver} type="button">
                     I have a code <ArrowRight size={15} />
@@ -122,7 +122,7 @@ export function AuthScreen({
                 </form>
             </section>
             <footer>
-                <span>Giftboard</span>
+                <span>HaulBoard</span>
                 <span>Make a list. Share it.</span>
             </footer>
         </main>
