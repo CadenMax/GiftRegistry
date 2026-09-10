@@ -193,16 +193,17 @@ export function updateGiftClaim(
 ) {
   const displayName = profile.displayName.trim() || 'Taylor';
   const thisGiftClaims = claims.filter((claim) => claim.giftId === giftId);
-  const remainingClaims = claims.filter(
-    (claim) => !(claim.giftId === giftId && claim.giverId === profile.id),
+  const nonTargetGiftClaims = claims.filter((claim) => claim.giftId !== giftId);
+  const otherGiversClaimsForGift = thisGiftClaims.filter(
+    (claim) => claim.giverId !== profile.id,
   );
-  const nextClaim = {
+  const nextClaim: ClaimRecord = {
     giftId,
     giverId: profile.id,
     state,
     giverName: displayName,
     giverMode: profile.mode,
-  } satisfies ClaimRecord;
+  };
 
   const claimedByAnotherGiver = thisGiftClaims.some(
     (claim) => claim.state === 'claimed' && claim.giverId !== profile.id,
@@ -212,5 +213,5 @@ export function updateGiftClaim(
     return claims;
   }
 
-  return [...remainingClaims, nextClaim];
+  return [...nonTargetGiftClaims, ...otherGiversClaimsForGift, nextClaim];
 }
