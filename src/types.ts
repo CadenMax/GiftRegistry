@@ -33,6 +33,7 @@ export type ClaimRecord = {
   state: ClaimState;
   giverName: string;
   giverMode: 'guest' | 'account';
+  giverAvatarUrl?: string;
 };
 
 export type Registry = {
@@ -51,6 +52,7 @@ export type GiftGiverProfile = {
   id: string;
   mode: 'guest' | 'account';
   displayName: string;
+  avatarUrl?: string;
 };
 
 export type RecipientView = {
@@ -88,5 +90,12 @@ export type GiftGiverView = {
     claimDetail: string;
     claimOwner?: string;
     claimOwnerId?: string;
+    claimOwnerAvatarUrl?: string;
+    claimPeople: Array<{
+      id: string;
+      name: string;
+      state: ClaimState;
+      avatarUrl?: string;
+    }>;
   }>;
 };

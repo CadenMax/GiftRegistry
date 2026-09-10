@@ -113,7 +113,7 @@ export function RecipientWorkspace({
                     <Share2 size={16} />
                     <span>Share</span>
                     <code>{registry.accessCode || "Not set"}</code>
-                    <button aria-label="Copy access code" className="copy-button" disabled={!registry.accessCode} onClick={copyCode} type="button">
+                    <button aria-label="Copy share link" className="copy-button" disabled={!registry.accessCode} onClick={copyCode} title="Copy share link" type="button">
                         {copied ? <Check size={16} /> : <LinkIcon size={16} />}
                     </button>
                 </div>

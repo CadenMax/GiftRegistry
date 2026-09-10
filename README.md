@@ -42,6 +42,10 @@ The frontend does not store accounts, sessions, passwords, or registries in brow
 - Sessions: random HttpOnly cookies backed by the `sessions` table
 - Registries: account-scoped records in the `registries` table
 
+## Sharing lists
+
+The share control copies a link such as `https://your-domain.example/?list=ABC123`. Anyone with that link can open the giver view without creating an account. Guests enter their name each time, and their claims are stored with that name and a generated guest identity. Signed-in visitors are recognized through their session; their account name and avatar are stored with their claims automatically.
+
 Node 22.5 or newer is required because the server uses Node's built-in `node:sqlite` module. For local development, run the API and Vite in separate terminals:
 
 ```bash

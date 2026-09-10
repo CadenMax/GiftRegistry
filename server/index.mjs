@@ -39,6 +39,8 @@ const statements = {
   session: database.prepare('SELECT account_id, expires_at FROM sessions WHERE token_hash = ?'),
   createSession: database.prepare('INSERT INTO sessions (token_hash, account_id, expires_at) VALUES (?, ?, ?)'),
   deleteSession: database.prepare('DELETE FROM sessions WHERE token_hash = ?'),
+  sharedRegistries: database.prepare('SELECT id, account_id, data FROM registries'),
+  updateRegistry: database.prepare('UPDATE registries SET data = ?, updated_at = ? WHERE id = ? AND account_id = ?'),
 };
 
 function json(response, status, body) {
@@ -105,6 +107,36 @@ function setSession(response, accountId) {
   response.setHeader('Set-Cookie', `kindlist_session=${token}; HttpOnly; Path=/; SameSite=Lax${isProduction ? '; Secure' : ''}`);
 }
 
+function findSharedRegistry(accessCode) {
+  for (const row of statements.sharedRegistries.all()) {
+    const registry = JSON.parse(row.data);
+    if (registry.accessCode === accessCode) return { row, registry };
+  }
+  return null;
+}
+
+function updateClaim(registry, giftId, profile, state) {
+  const claims = registry.claims ?? [];
+  const thisGiftClaims = claims.filter((claim) => claim.giftId === giftId);
+  if (thisGiftClaims.some((claim) => claim.state === 'claimed' && claim.giverId !== profile.id)) return registry;
+  const nextClaim = {
+    giftId,
+    giverId: String(profile.id || `guest-${randomUUID()}`),
+    state,
+    giverName: String(profile.displayName || 'Guest').trim(),
+    giverMode: profile.mode === 'account' ? 'account' : 'guest',
+    ...(profile.avatarUrl ? { giverAvatarUrl: profile.avatarUrl } : {}),
+  };
+  return {
+    ...registry,
+    claims: [
+      ...claims.filter((claim) => claim.giftId !== giftId),
+      ...thisGiftClaims.filter((claim) => claim.giverId !== nextClaim.giverId),
+      nextClaim,
+    ],
+  };
+}
+
 async function handleApi(request, response, path) {
   if (request.method === 'GET' && path === '/api/session') {
     return json(response, 200, { account: authenticatedAccount(request) });
@@ -136,6 +168,33 @@ async function handleApi(request, response, path) {
     if (token) statements.deleteSession.run(tokenHash(token));
     response.setHeader('Set-Cookie', 'kindlist_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax');
     return json(response, 200, { ok: true });
+  }
+
+  const sharedMatch = path.match(/^\/api\/shared\/([^/]+)(?:\/claims)?$/);
+  if (sharedMatch) {
+    const accessCode = decodeURIComponent(sharedMatch[1]).trim().toUpperCase();
+    const shared = findSharedRegistry(accessCode);
+    if (!shared) return json(response, 404, { error: 'That shared list could not be found.' });
+    if (request.method === 'GET' && path === `/api/shared/${sharedMatch[1]}`) {
+      return json(response, 200, { registry: shared.registry });
+    }
+    if (request.method === 'PATCH' && path.endsWith('/claims')) {
+      const body = await readBody(request);
+      const giftExists = shared.registry.gifts.some((gift) => gift.id === body.giftId);
+      if (!giftExists || !body.profile || !['considering', 'claimed'].includes(body.state)) {
+        return json(response, 400, { error: 'That claim is not valid.' });
+      }
+      const signedInAccount = authenticatedAccount(request);
+      if (body.profile.mode === 'account' && (!signedInAccount || signedInAccount.id !== body.profile.id)) {
+        return json(response, 403, { error: 'Sign in to use your account identity.' });
+      }
+      const profile = signedInAccount
+        ? { ...body.profile, id: signedInAccount.id, mode: 'account', displayName: signedInAccount.name, avatarUrl: signedInAccount.avatarUrl }
+        : { ...body.profile, mode: 'guest' };
+      const nextRegistry = updateClaim(shared.registry, body.giftId, profile, body.state);
+      statements.updateRegistry.run(JSON.stringify(nextRegistry), new Date().toISOString(), shared.row.id, shared.row.account_id);
+      return json(response, 200, { registry: nextRegistry });
+    }
   }
 
   const account = requireAccount(request, response);

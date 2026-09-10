@@ -76,3 +76,21 @@ export async function saveAccountRegistries(_account: RecipientAccount, registri
     body: JSON.stringify({ registries }),
   });
 }
+
+export async function getSharedRegistry(accessCode: string) {
+  const response = await request<{ registry: Registry }>(`/api/shared/${encodeURIComponent(accessCode)}`);
+  return response.registry;
+}
+
+export async function updateSharedClaim(
+  accessCode: string,
+  giftId: string,
+  profile: { id: string; mode: 'guest' | 'account'; displayName: string; avatarUrl?: string },
+  state: 'considering' | 'claimed',
+) {
+  const response = await request<{ registry: Registry }>(`/api/shared/${encodeURIComponent(accessCode)}/claims`, {
+    method: 'PATCH',
+    body: JSON.stringify({ giftId, profile, state }),
+  });
+  return response.registry;
+}

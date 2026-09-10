@@ -62,6 +62,7 @@ function getGiftClaimSummary(claims: ClaimRecord[], giftId: string) {
       detail: `${claimedGift.giverName} is buying this gift.`,
       owner: claimedGift.giverName,
       ownerId: claimedGift.giverId,
+      ownerAvatarUrl: claimedGift.giverAvatarUrl,
     };
   }
 
@@ -74,6 +75,7 @@ function getGiftClaimSummary(claims: ClaimRecord[], giftId: string) {
       detail: `${giverNames} ${giftClaims.length === 1 ? 'is' : 'are'} considering this gift.`,
       owner: undefined,
       ownerId: undefined,
+      ownerAvatarUrl: undefined,
     };
   }
 
@@ -83,6 +85,7 @@ function getGiftClaimSummary(claims: ClaimRecord[], giftId: string) {
     detail: 'Nobody has marked this yet.',
     owner: undefined,
     ownerId: undefined,
+    ownerAvatarUrl: undefined,
   };
 }
 
@@ -179,6 +182,13 @@ export function createGiftGiverView(
         claimDetail: claimSummary.detail,
         claimOwner: claimSummary.owner,
         claimOwnerId: claimSummary.ownerId,
+        claimOwnerAvatarUrl: claimSummary.ownerAvatarUrl,
+        claimPeople: getGiftClaims(claims, gift.id).map((claim) => ({
+          id: claim.giverId,
+          name: claim.giverName,
+          state: claim.state,
+          avatarUrl: claim.giverAvatarUrl,
+        })),
       };
     }),
   };
@@ -202,6 +212,7 @@ export function updateGiftClaim(
     state,
     giverName: displayName,
     giverMode: profile.mode,
+    giverAvatarUrl: profile.avatarUrl,
   };
 
   const claimedByAnotherGiver = thisGiftClaims.some(

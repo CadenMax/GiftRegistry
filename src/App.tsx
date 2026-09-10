@@ -9,7 +9,7 @@ import {
 import { useEffect, useMemo, useState, type SetStateAction } from "react";
 import "./App.css";
 import { AuthScreen } from "./components/AuthScreen";
-import { GiverWorkspace } from "./components/GiverWorkspace";
+import { GiverWorkspace } from "./components/GiverWorkspace.tsx";
 import { ListSetup } from "./components/ListSetup";
 import { ProfileScreen } from "./components/ProfileScreen";
 import { RecipientWorkspace } from "./components/RecipientWorkspace";
@@ -23,9 +23,11 @@ import {
   clearSession,
   createAccount,
   getAccountRegistries,
+  getSharedRegistry,
   getStoredSession,
   saveAccountRegistries,
   signIn,
+  updateSharedClaim,
   updateAccountProfile,
 } from "./lib/accountStore";
 import type { ProfileDetails, RecipientAccount } from "./lib/accountStore";
@@ -63,8 +65,10 @@ function normaliseLink(link: string) {
 }
 
 function App() {
+  const sharedCode = new URLSearchParams(window.location.search).get("list")?.trim().toUpperCase() ?? "";
   const [account, setAccount] = useState<RecipientAccount | null>(null);
   const [registries, setRegistries] = useState<Registry[]>([]);
+  const [sharedRegistry, setSharedRegistry] = useState<Registry | null>(null);
   const [activeRegistryId, setActiveRegistryId] = useState("");
   const [sessionReady, setSessionReady] = useState(false);
   const registry = registries.find((item) => item.id === activeRegistryId) ?? initialRegistry;
@@ -79,7 +83,7 @@ function App() {
       ),
     );
   };
-  const [workspace, setWorkspace] = useState<Workspace>("recipient");
+  const [workspace, setWorkspace] = useState<Workspace>(() => sharedCode ? "giver" : "recipient");
   const [recipientCategory, setRecipientCategory] = useState("all");
   const [recipientSort, setRecipientSort] = useState<SortOption>("recent");
   const [giverCategory, setGiverCategory] = useState("all");
@@ -111,6 +115,8 @@ function App() {
   const [showListSetup, setShowListSetup] = useState(false);
   const [listSetupMode, setListSetupMode] = useState<"create" | "edit">("create");
   const [showProfile, setShowProfile] = useState(false);
+  const [activeSharedCode, setActiveSharedCode] = useState(sharedCode);
+  const giverRegistry = sharedRegistry ?? registry;
 
   useEffect(() => {
     let cancelled = false;
@@ -119,6 +125,27 @@ function App() {
         const storedAccount = await getStoredSession();
         if (cancelled) return;
         setAccount(storedAccount);
+        if (sharedCode) {
+          setAccessCode(sharedCode);
+          try {
+            const nextSharedRegistry = await getSharedRegistry(sharedCode);
+            if (cancelled) return;
+            setSharedRegistry(nextSharedRegistry);
+            setActiveSharedCode(sharedCode);
+            setWorkspace("giver");
+            if (storedAccount) {
+              setGiftGiverProfile({
+                id: storedAccount.id,
+                mode: "account",
+                displayName: storedAccount.name,
+                avatarUrl: storedAccount.avatarUrl,
+              });
+              setIsUnlocked(true);
+            }
+          } catch (error) {
+            if (!cancelled) setAccessError(error instanceof Error ? error.message : "That shared list could not be opened.");
+          }
+        }
         if (storedAccount) {
           const nextRegistries = await getAccountRegistries(storedAccount);
           if (cancelled) return;
@@ -131,7 +158,7 @@ function App() {
     };
     void restoreSession();
     return () => { cancelled = true; };
-  }, []);
+  }, [sharedCode]);
 
   useEffect(() => {
     if (account && sessionReady) void saveAccountRegistries(account, registries);
@@ -147,8 +174,8 @@ function App() {
   );
   const giftGiverView = useMemo(
     () =>
-      isUnlocked
-        ? createGiftGiverView(registry, registry.claims, {
+      (isUnlocked || Boolean(sharedRegistry))
+        ? createGiftGiverView(giverRegistry, giverRegistry.claims, {
             category: giverCategory,
             sort: giverSort,
             claimFilter: giverClaimFilter,
@@ -156,8 +183,9 @@ function App() {
           })
         : null,
     [
-      registry,
+      giverRegistry,
       isUnlocked,
+      sharedRegistry,
       giverCategory,
       giverSort,
       giverClaimFilter,
@@ -169,22 +197,37 @@ function App() {
     0,
   );
 
-  const unlockRegistry = (event: React.FormEvent<HTMLFormElement>) => {
+  const unlockRegistry = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (accessCode.trim().toUpperCase() === registry.accessCode) {
+    const code = accessCode.trim().toUpperCase();
+    if (sharedRegistry?.accessCode === code) {
       setIsUnlocked(true);
       setAccessError("");
-    } else {
+      return;
+    }
+    try {
+      const nextSharedRegistry = await getSharedRegistry(code);
+      setSharedRegistry(nextSharedRegistry);
+      setActiveSharedCode(code);
+      setIsUnlocked(true);
+      setAccessError("");
+    } catch (error) {
       setIsUnlocked(false);
-      setAccessError("That code does not match this registry.");
+      setAccessError(error instanceof Error ? error.message : "That code does not match this registry.");
     }
   };
 
-  const updateClaim = (giftId: string, state: ClaimState) =>
+  const updateClaim = async (giftId: string, state: ClaimState) => {
+    if (sharedRegistry && activeSharedCode) {
+      const nextRegistry = await updateSharedClaim(activeSharedCode, giftId, giftGiverProfile, state);
+      setSharedRegistry(nextRegistry);
+      return;
+    }
     setRegistry((current) => ({
       ...current,
       claims: updateGiftClaim(current.claims, giftId, giftGiverProfile, state),
     }));
+  };
 
   const addGift = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -305,7 +348,9 @@ function App() {
   };
 
   const copyCode = async () => {
-    await navigator.clipboard?.writeText(registry.accessCode);
+    const shareUrl = new URL(window.location.href);
+    shareUrl.searchParams.set("list", registry.accessCode);
+    await navigator.clipboard?.writeText(shareUrl.toString());
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
   };
@@ -446,7 +491,7 @@ function App() {
     );
   }
 
-  if (account && (showListSetup || !registry.listName.trim())) {
+  if (account && !sharedRegistry && workspace === "recipient" && (showListSetup || !registry.listName.trim())) {
     return (
       <ListSetup
         listName={listName}
@@ -465,7 +510,7 @@ function App() {
     );
   }
 
-  if (account && showProfile) {
+  if (account && !sharedRegistry && showProfile) {
     return (
       <ProfileScreen
         account={account}
@@ -550,7 +595,7 @@ function App() {
         />
       ) : (
         <GiverWorkspace
-          registry={registry}
+          registry={giverRegistry}
           view={giftGiverView}
           profile={giftGiverProfile}
           accessCode={accessCode}
