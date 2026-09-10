@@ -29,6 +29,7 @@ const themeColors = [
 type RecipientWorkspaceProps = {
     registry: Registry;
     registries: Registry[];
+    hasOwnList: boolean;
     activeRegistryId: string;
     recipientView: RecipientView;
     totalValue: number;
@@ -69,6 +70,7 @@ type RecipientWorkspaceProps = {
 export function RecipientWorkspace({
     registry,
     registries,
+    hasOwnList,
     activeRegistryId,
     recipientView,
     totalValue,
@@ -105,6 +107,19 @@ export function RecipientWorkspace({
     onDeleteList,
     onDuplicateList,
 }: RecipientWorkspaceProps) {
+    if (!hasOwnList) {
+        return (
+            <section className="workspace recipient-workspace">
+                <div className="empty-state no-lists-state">
+                    <BookOpen size={24} />
+                    <h2>No lists yet</h2>
+                    <p>Create your own list whenever you are ready.</p>
+                    <button className="primary-button" onClick={onNewList} type="button"><Plus size={17} /> Create a list</button>
+                </div>
+            </section>
+        );
+    }
+
     return (
         <section className="workspace recipient-workspace">
             <div className="section-heading">

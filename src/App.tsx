@@ -647,6 +647,7 @@ function App() {
         <RecipientWorkspace
           registry={registry}
           registries={registries}
+          hasOwnList={registries.length > 0}
           activeRegistryId={activeRegistryId}
           recipientView={recipientView}
           totalValue={totalValue}
