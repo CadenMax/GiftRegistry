@@ -88,18 +88,21 @@ export const registry: Registry = {
   claims: [
     {
       giftId: 'gift-console',
+      giverId: 'avery-account',
       state: 'claimed',
       giverName: 'Avery',
       giverMode: 'account',
     },
     {
       giftId: 'gift-game',
+      giverId: 'jordan-guest',
       state: 'considering',
       giverName: 'Jordan',
       giverMode: 'guest',
     },
     {
       giftId: 'gift-game',
+      giverId: 'sam-account',
       state: 'considering',
       giverName: 'Sam',
       giverMode: 'account',

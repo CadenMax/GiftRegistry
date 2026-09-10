@@ -54,6 +54,7 @@ function App() {
   const [accessCode, setAccessCode] = useState('');
   const [activeAccessCode, setActiveAccessCode] = useState('');
   const [giftGiverProfile, setGiftGiverProfile] = useState<GiftGiverProfile>({
+    id: 'demo-viewer',
     mode: 'guest',
     displayName: 'Taylor',
   });
@@ -383,7 +384,7 @@ function App() {
                       <p className="claim-details">{gift.claimDetail}</p>
                       <div className="gift-actions">
                         <button
-                          disabled={Boolean(gift.claimOwner && gift.claimOwner !== activeDisplayName)}
+                          disabled={gift.claimState === 'claimed'}
                           onClick={() => updateClaim(gift.id, 'considering')}
                           type="button"
                         >

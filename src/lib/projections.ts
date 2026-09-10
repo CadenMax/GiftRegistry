@@ -23,7 +23,7 @@ const claimStateOrder: Record<ClaimState | 'available', number> = {
   claimed: 2,
 };
 
-function sortGifts(gifts: Gift[], sort: SortOption) {
+function sortGifts(gifts: Gift[], sort: SortOption, categoryNames: Record<string, string>) {
   return [...gifts].sort((left, right) => {
     switch (sort) {
       case 'price':
@@ -31,7 +31,7 @@ function sortGifts(gifts: Gift[], sort: SortOption) {
       case 'name':
         return left.title.localeCompare(right.title);
       case 'category':
-        return left.categoryId.localeCompare(right.categoryId);
+        return (categoryNames[left.categoryId] ?? 'Other').localeCompare(categoryNames[right.categoryId] ?? 'Other');
       case 'recent':
         return right.addedAt.localeCompare(left.addedAt);
       case 'priority':
@@ -91,9 +91,11 @@ export function createRecipientView(
   registry: Registry,
   filters: { category: string; sort: SortOption },
 ): RecipientView {
+  const categoryNames = Object.fromEntries(registry.categories.map((category) => [category.id, category.name]));
   const visibleGifts = sortGifts(
     registry.gifts.filter((gift) => filters.category === 'all' || gift.categoryId === filters.category),
     filters.sort,
+    categoryNames,
   );
 
   return {
@@ -126,6 +128,7 @@ export function createGiftGiverView(
     dependenciesOnly: boolean;
   },
 ): GiftGiverView {
+  const categoryNames = Object.fromEntries(registry.categories.map((category) => [category.id, category.name]));
   const filteredGifts = registry.gifts
     .filter((gift) => filters.category === 'all' || gift.categoryId === filters.category)
     .filter((gift) => !filters.dependenciesOnly || gift.dependsOn.length > 0)
@@ -152,7 +155,7 @@ export function createGiftGiverView(
 
           return claimStateOrder[leftState] - claimStateOrder[rightState];
         })
-      : sortGifts(filteredGifts, filters.sort);
+      : sortGifts(filteredGifts, filters.sort, categoryNames);
 
   return {
     listName: registry.listName,
@@ -187,17 +190,18 @@ export function updateGiftClaim(
   const displayName = profile.displayName.trim() || 'Taylor';
   const thisGiftClaims = claims.filter((claim) => claim.giftId === giftId);
   const remainingClaims = claims.filter(
-    (claim) => !(claim.giftId === giftId && claim.giverName === displayName),
+    (claim) => !(claim.giftId === giftId && claim.giverId === profile.id),
   );
   const nextClaim = {
     giftId,
+    giverId: profile.id,
     state,
     giverName: displayName,
     giverMode: profile.mode,
   } satisfies ClaimRecord;
 
   const claimedByAnotherGiver = thisGiftClaims.some(
-    (claim) => claim.state === 'claimed' && claim.giverName !== displayName,
+    (claim) => claim.state === 'claimed' && claim.giverId !== profile.id,
   );
 
   if (claimedByAnotherGiver) {

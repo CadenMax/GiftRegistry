@@ -25,6 +25,7 @@ export type Gift = {
 
 export type ClaimRecord = {
   giftId: string;
+  giverId: string;
   state: ClaimState;
   giverName: string;
   giverMode: 'guest' | 'account';
@@ -42,6 +43,7 @@ export type Registry = {
 };
 
 export type GiftGiverProfile = {
+  id: string;
   mode: 'guest' | 'account';
   displayName: string;
 };
