@@ -83,5 +83,6 @@ export type GiftGiverView = {
     claimLabel: string;
     claimDetail: string;
     claimOwner?: string;
+    claimOwnerId?: string;
   }>;
 };

@@ -392,7 +392,7 @@ function App() {
                         </button>
                         <button
                           className="secondary-button"
-                          disabled={Boolean(gift.claimOwner && gift.claimOwner !== activeDisplayName)}
+                          disabled={Boolean(gift.claimOwnerId && gift.claimOwnerId !== giftGiverProfile.id)}
                           onClick={() => updateClaim(gift.id, 'claimed')}
                           type="button"
                         >

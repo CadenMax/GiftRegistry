@@ -41,14 +41,12 @@ function sortGifts(gifts: Gift[], sort: SortOption, categoryNames: Record<string
   });
 }
 
-function getDependenciesLabel(allGifts: Gift[], dependencyIds: string[]) {
+function getDependenciesLabel(giftTitles: Record<string, string>, dependencyIds: string[]) {
   if (dependencyIds.length === 0) {
     return 'Independent gift';
   }
 
-  return dependencyIds
-    .map((dependencyId) => allGifts.find((gift) => gift.id === dependencyId)?.title ?? 'Another gift')
-    .join(', ');
+  return dependencyIds.map((dependencyId) => giftTitles[dependencyId] ?? 'Another gift').join(', ');
 }
 
 function getGiftClaims(claims: ClaimRecord[], giftId: string) {
@@ -65,6 +63,7 @@ function getGiftClaimSummary(claims: ClaimRecord[], giftId: string) {
       label: 'Claimed',
       detail: `${claimedGift.giverName} is buying this gift.`,
       owner: claimedGift.giverName,
+      ownerId: claimedGift.giverId,
     };
   }
 
@@ -76,6 +75,7 @@ function getGiftClaimSummary(claims: ClaimRecord[], giftId: string) {
       label: `${giftClaims.length} considering`,
       detail: `${giverNames} ${giftClaims.length === 1 ? 'is' : 'are'} considering this gift.`,
       owner: undefined,
+      ownerId: undefined,
     };
   }
 
@@ -84,6 +84,7 @@ function getGiftClaimSummary(claims: ClaimRecord[], giftId: string) {
     label: 'Available',
     detail: 'Nobody has marked this yet.',
     owner: undefined,
+    ownerId: undefined,
   };
 }
 
@@ -92,6 +93,7 @@ export function createRecipientView(
   filters: { category: string; sort: SortOption },
 ): RecipientView {
   const categoryNames = Object.fromEntries(registry.categories.map((category) => [category.id, category.name]));
+  const giftTitles = Object.fromEntries(registry.gifts.map((gift) => [gift.id, gift.title]));
   const visibleGifts = sortGifts(
     registry.gifts.filter((gift) => filters.category === 'all' || gift.categoryId === filters.category),
     filters.sort,
@@ -113,7 +115,7 @@ export function createRecipientView(
       categoryName: registry.categories.find((category) => category.id === gift.categoryId)?.name ?? 'Other',
       priority: gift.priority,
       status: gift.status,
-      dependenciesLabel: getDependenciesLabel(registry.gifts, gift.dependsOn),
+      dependenciesLabel: getDependenciesLabel(giftTitles, gift.dependsOn),
     })),
   };
 }
@@ -129,6 +131,7 @@ export function createGiftGiverView(
   },
 ): GiftGiverView {
   const categoryNames = Object.fromEntries(registry.categories.map((category) => [category.id, category.name]));
+  const giftTitles = Object.fromEntries(registry.gifts.map((gift) => [gift.id, gift.title]));
   const filteredGifts = registry.gifts
     .filter((gift) => filters.category === 'all' || gift.categoryId === filters.category)
     .filter((gift) => !filters.dependenciesOnly || gift.dependsOn.length > 0)
@@ -171,11 +174,12 @@ export function createGiftGiverView(
         priceLabel: `£${gift.price}`,
         categoryName: registry.categories.find((category) => category.id === gift.categoryId)?.name ?? 'Other',
         priority: gift.priority,
-        dependenciesLabel: getDependenciesLabel(registry.gifts, gift.dependsOn),
+        dependenciesLabel: getDependenciesLabel(giftTitles, gift.dependsOn),
         claimState: claimSummary.state,
         claimLabel: claimSummary.label,
         claimDetail: claimSummary.detail,
         claimOwner: claimSummary.owner,
+        claimOwnerId: claimSummary.ownerId,
       };
     }),
   };

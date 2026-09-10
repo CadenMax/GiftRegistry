@@ -136,7 +136,7 @@ button {
 
 button {
   background: linear-gradient(135deg, #b26956, #d78d66);
-  border: none;
+  border: 1px solid transparent;
   color: white;
   cursor: pointer;
   font-weight: 700;
@@ -149,6 +149,7 @@ button:disabled {
 
 .secondary-button {
   background: #fff3ef;
+  border-color: #dfc4bb;
   color: #8a4f42;
 }
 
