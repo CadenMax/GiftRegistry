@@ -1,54 +1,11 @@
 import {
   ArrowRight,
-  Gift,
-  KeyRound,
-  LockKeyhole,
-  ShieldCheck,
-  Sparkles,
-  UserRound,
-  UsersRound,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import './App.css';
 import { registry } from './data/registry';
 import { createGiftGiverView, createRecipientView, updateGiftClaim } from './lib/projections';
 import type { ClaimFilter, ClaimState, GiftGiverProfile, GiftGiverSortOption, SortOption } from './types';
-
-const architectureHighlights = [
-  {
-    icon: ShieldCheck,
-    title: 'Private by design',
-    description:
-      'Recipient responses are built from a separate projection, so claim data is excluded before the UI ever receives it.',
-  },
-  {
-    icon: KeyRound,
-    title: 'Access-code sharing',
-    description:
-      'Gift givers can enter a list code to browse and interact with a registry without being forced to create an account.',
-  },
-  {
-    icon: Sparkles,
-    title: 'Flexible gift model',
-    description:
-      'Gifts support categories, priority, price, links, images, status, and multi-item dependencies from the start.',
-  },
-];
-
-const roleHighlights = [
-  {
-    icon: UserRound,
-    title: 'Recipient',
-    description:
-      'Owns lists, manages gifts and categories, shares access codes, and never receives claim or purchase data.',
-  },
-  {
-    icon: UsersRound,
-    title: 'Gift giver',
-    description:
-      'Uses a share code, browses private registry details, and can mark gifts as considering or claimed with a guest or account identity.',
-  },
-];
 
 function App() {
   const [accessCode, setAccessCode] = useState('');
@@ -76,11 +33,11 @@ function App() {
     () =>
       activeAccessCode === registry.accessCode
         ? createGiftGiverView(registry, claimRecords, {
-            category: giverCategory,
-            sort: giverSort,
-            claimFilter: giverClaimFilter,
-            dependenciesOnly: giverDependenciesOnly,
-          })
+          category: giverCategory,
+          sort: giverSort,
+          claimFilter: giverClaimFilter,
+          dependenciesOnly: giverDependenciesOnly,
+        })
         : null,
     [activeAccessCode, claimRecords, giverCategory, giverSort, giverClaimFilter, giverDependenciesOnly],
   );
@@ -108,57 +65,6 @@ function App() {
 
   return (
     <main className="app-shell">
-      <section className="hero card">
-        <div className="hero-copy">
-          <span className="eyebrow">Personalised Gift Registry</span>
-          <h1>Thoughtful gifting without duplicate surprises.</h1>
-          <p>
-            This starter experience establishes the architecture, privacy boundaries, and mobile-first
-            registry flows needed for recipients and gift givers.
-          </p>
-          <div className="hero-pills">
-            <span>
-              <LockKeyhole size={16} />
-              Claim data stays private from recipients
-            </span>
-            <span>
-              <Gift size={16} />
-              Categories, priority, links, images, and dependencies
-            </span>
-          </div>
-        </div>
-        <div className="hero-panel">
-          <h2>Core assumptions</h2>
-          <ul>
-            <li>Recipients authenticate with full accounts and own one or more registries.</li>
-            <li>Gift givers can continue as guests or save a lightweight account identity.</li>
-            <li>Access codes unlock a giver-safe projection of the list, not owner management data.</li>
-          </ul>
-        </div>
-      </section>
-
-      <section className="section-grid">
-        {architectureHighlights.map(({ icon: Icon, title, description }) => (
-          <article className="card feature-card" key={title}>
-            <Icon size={20} />
-            <h2>{title}</h2>
-            <p>{description}</p>
-          </article>
-        ))}
-      </section>
-
-      <section className="section-grid roles-grid">
-        {roleHighlights.map(({ icon: Icon, title, description }) => (
-          <article className="card role-card" key={title}>
-            <div className="role-heading">
-              <Icon size={18} />
-              <h2>{title}</h2>
-            </div>
-            <p>{description}</p>
-          </article>
-        ))}
-      </section>
-
       <section className="workspace-grid">
         <article className="card workspace-card">
           <div className="workspace-header">
