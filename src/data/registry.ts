@@ -6,12 +6,8 @@ export const registry: Registry = {
   occasion: 'Wishlist',
   ownerName: 'You',
   accessCode: 'START-HERE',
-  categories: [
-    { id: 'home', name: 'Home' },
-    { id: 'books', name: 'Books' },
-    { id: 'hobbies', name: 'Hobbies' },
-    { id: 'experiences', name: 'Experiences' },
-  ],
+  categories: [],
+  statuses: [],
   gifts: [],
   claims: [],
 };

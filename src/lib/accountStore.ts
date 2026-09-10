@@ -34,11 +34,15 @@ export function getStoredSession() {
 }
 
 export function getAccountRegistry(account: RecipientAccount, initialRegistry: Registry) {
-  return readJson<Registry>(registryKey(account.id), {
+  const storedRegistry = readJson<Registry | null>(registryKey(account.id), null);
+  return storedRegistry ? {
+    ...storedRegistry,
+    statuses: storedRegistry.statuses ?? [],
+  } : {
     ...initialRegistry,
     ownerName: account.name,
     accessCode: `${account.id.slice(-4).toUpperCase()}-LIST`,
-  });
+  };
 }
 
 export async function createAccount(name: string, email: string, password: string, initialRegistry: Registry) {

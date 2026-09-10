@@ -11,12 +11,6 @@ import type {
   SortOption,
 } from '../types';
 
-const priorityOrder = {
-  high: 0,
-  medium: 1,
-  low: 2,
-} as const;
-
 const claimStateOrder: Record<ClaimState | 'available', number> = {
   available: 0,
   considering: 1,
@@ -27,26 +21,30 @@ function sortGifts(gifts: Gift[], sort: SortOption, categoryNames: Record<string
   return [...gifts].sort((left, right) => {
     switch (sort) {
       case 'price':
-        return left.price - right.price;
+        return (left.price ?? Number.POSITIVE_INFINITY) - (right.price ?? Number.POSITIVE_INFINITY);
       case 'name':
         return left.title.localeCompare(right.title);
       case 'category':
-        return (categoryNames[left.categoryId] ?? 'Other').localeCompare(categoryNames[right.categoryId] ?? 'Other');
+        return (categoryNames[left.categoryId ?? ''] ?? 'Other').localeCompare(categoryNames[right.categoryId ?? ''] ?? 'Other');
       case 'recent':
         return right.addedAt.localeCompare(left.addedAt);
-      case 'priority':
       default:
-        return priorityOrder[left.priority] - priorityOrder[right.priority];
+        return right.addedAt.localeCompare(left.addedAt);
     }
   });
 }
 
-function getDependenciesLabel(giftTitles: Record<string, string>, dependencyIds: string[]) {
-  if (dependencyIds.length === 0) {
-    return 'Independent gift';
+function getDependenciesLabel(giftTitles: Record<string, string>, dependencyIds: string[], dependencyText?: string) {
+  const dependencies = [
+    ...dependencyIds.map((dependencyId) => giftTitles[dependencyId] ?? 'Another gift'),
+    ...(dependencyText ? [dependencyText] : []),
+  ];
+
+  if (dependencies.length === 0) {
+    return '';
   }
 
-  return dependencyIds.map((dependencyId) => giftTitles[dependencyId] ?? 'Another gift').join(', ');
+  return dependencies.join(', ');
 }
 
 function getGiftClaims(claims: ClaimRecord[], giftId: string) {
@@ -93,6 +91,7 @@ export function createRecipientView(
   filters: { category: string; sort: SortOption },
 ): RecipientView {
   const categoryNames = Object.fromEntries(registry.categories.map((category) => [category.id, category.name]));
+  const statusNames = Object.fromEntries(registry.statuses.map((status) => [status.id, status.name]));
   const giftTitles = Object.fromEntries(registry.gifts.map((gift) => [gift.id, gift.title]));
   const visibleGifts = sortGifts(
     registry.gifts.filter((gift) => filters.category === 'all' || gift.categoryId === filters.category),
@@ -111,11 +110,10 @@ export function createRecipientView(
       description: gift.description,
       imageUrl: gift.imageUrl,
       linkUrl: gift.linkUrl,
-      priceLabel: `$${gift.price}`,
-      categoryName: registry.categories.find((category) => category.id === gift.categoryId)?.name ?? 'Other',
-      priority: gift.priority,
-      status: gift.status,
-      dependenciesLabel: getDependenciesLabel(giftTitles, gift.dependsOn),
+      priceLabel: gift.price === undefined ? 'Price not set' : `$${gift.price.toFixed(2)}`,
+      categoryName: registry.categories.find((category) => category.id === gift.categoryId)?.name ?? 'Uncategorised',
+      status: gift.status ? statusNames[gift.status] ?? gift.status : undefined,
+      dependenciesLabel: getDependenciesLabel(giftTitles, gift.dependsOn, gift.dependencyText),
     })),
   };
 }
@@ -131,10 +129,11 @@ export function createGiftGiverView(
   },
 ): GiftGiverView {
   const categoryNames = Object.fromEntries(registry.categories.map((category) => [category.id, category.name]));
+  const statusNames = Object.fromEntries(registry.statuses.map((status) => [status.id, status.name]));
   const giftTitles = Object.fromEntries(registry.gifts.map((gift) => [gift.id, gift.title]));
   const filteredGifts = registry.gifts
     .filter((gift) => filters.category === 'all' || gift.categoryId === filters.category)
-    .filter((gift) => !filters.dependenciesOnly || gift.dependsOn.length > 0)
+    .filter((gift) => !filters.dependenciesOnly || gift.dependsOn.length > 0 || Boolean(gift.dependencyText))
     .filter((gift) => {
       const claimState = getGiftClaimSummary(claims, gift.id).state;
 
@@ -171,10 +170,10 @@ export function createGiftGiverView(
         title: gift.title,
         description: gift.description,
         imageUrl: gift.imageUrl,
-        priceLabel: `$${gift.price}`,
-        categoryName: registry.categories.find((category) => category.id === gift.categoryId)?.name ?? 'Other',
-        priority: gift.priority,
-        dependenciesLabel: getDependenciesLabel(giftTitles, gift.dependsOn),
+        priceLabel: gift.price === undefined ? 'Price not set' : `$${gift.price.toFixed(2)}`,
+        categoryName: registry.categories.find((category) => category.id === gift.categoryId)?.name ?? 'Uncategorised',
+        status: gift.status ? statusNames[gift.status] ?? gift.status : undefined,
+        dependenciesLabel: getDependenciesLabel(giftTitles, gift.dependsOn, gift.dependencyText),
         claimState: claimSummary.state,
         claimLabel: claimSummary.label,
         claimDetail: claimSummary.detail,
