@@ -114,7 +114,7 @@ export function RecipientWorkspace({
                     <BookOpen size={24} />
                     <h2>No lists yet</h2>
                     <p>Create your own list whenever you are ready.</p>
-                    <button className="primary-button" onClick={onNewList} type="button"><Plus size={17} /> Create a list</button>
+                    <button aria-label="Create a list" className="primary-button" onClick={() => onNewList()} type="button"><Plus size={17} /> Create a list</button>
                 </div>
             </section>
         );
@@ -189,7 +189,7 @@ export function RecipientWorkspace({
             <div className="gift-grid">{recipientView.gifts.map((gift) => (
                 <article className="gift-card" key={gift.id}>
                     {gift.imageUrl ? <img alt={gift.title} className="gift-image" src={gift.imageUrl} /> : <div className="gift-image gift-image-placeholder"><GiftIcon size={24} /><span>No image</span></div>}
-                    <div className="gift-copy"><div className="gift-title-row"><div>{gift.status ? <span className="gift-status" style={{ "--tag-color": gift.statusColor } as CSSProperties}>{gift.status}</span> : null}<h3>{gift.title}</h3><p>{gift.description || "No description."}</p></div><span className="gift-card-actions"><button aria-label={`Edit ${gift.title}`} className="delete-button" onClick={() => editGift(gift.id)} title="Edit gift" type="button"><BookOpen size={16} /></button><button aria-label={`Remove ${gift.title}`} className="delete-button" onClick={() => deleteGift(gift.id)} title="Remove gift" type="button"><Trash2 size={16} /></button></span></div><div className="gift-footer"><span className="gift-category" style={{ "--tag-color": gift.categoryColor } as CSSProperties}>{gift.categoryName}</span><strong>{gift.priceLabel}</strong></div>{gift.dependenciesLabel ? <div className="gift-dependency">Needs: {gift.dependenciesLabel}</div> : null}{gift.linkUrl ? <a className="gift-link" href={normaliseLink(gift.linkUrl)} rel="noreferrer" target="_blank">Open link <ArrowRight size={15} /> </a> : null}</div>
+                    <div className="gift-copy"><div className="gift-title-row"><div>{gift.status ? <span className="gift-status" style={{ "--tag-color": gift.statusColor } as CSSProperties}>{gift.status}</span> : null}<h3>{gift.title}</h3><p>{gift.description || "No description."}</p></div><span className="gift-card-actions"><button aria-label={`Edit ${gift.title}`} className="delete-button" onClick={() => editGift(gift.id)} title="Edit gift" type="button"><Pencil size={16} /></button><button aria-label={`Remove ${gift.title}`} className="delete-button" onClick={() => deleteGift(gift.id)} title="Remove gift" type="button"><Trash2 size={16} /></button></span></div><div className="gift-footer"><span className="gift-category" style={{ "--tag-color": gift.categoryColor } as CSSProperties}>{gift.categoryName}</span><strong>{gift.priceLabel}</strong></div>{gift.dependenciesLabel ? <div className="gift-dependency">Needs: {gift.dependenciesLabel}</div> : null}{gift.linkUrl ? <a className="gift-link" href={normaliseLink(gift.linkUrl)} rel="noreferrer" target="_blank">Open link <ArrowRight size={15} /> </a> : null}</div>
                 </article>
             ))}</div>
         </section>

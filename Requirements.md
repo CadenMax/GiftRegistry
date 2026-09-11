@@ -92,7 +92,6 @@ A gift item should support at least:
 * External URL/link
 * Price/cost
 * Category
-* Priority
 * Status
 * Dependencies
 
@@ -111,18 +110,6 @@ Examples could include:
 * Experiences
 
 Categories should not be hard-coded where possible. The recipient should be able to create and manage their own categories.
-
-### Priority
-
-Recipients should be able to assign a priority to gifts.
-
-For example:
-
-* Low
-* Medium
-* High
-
-The system should be designed so this could potentially be expanded or customised later.
 
 ### Dependencies
 
@@ -148,7 +135,6 @@ Gift lists should be sortable and filterable using the available gift informatio
 
 Potential sorting options include:
 
-* Priority
 * Price
 * Name
 * Category

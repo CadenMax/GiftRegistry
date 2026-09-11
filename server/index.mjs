@@ -129,10 +129,39 @@ function findSharedRegistry(accessCode) {
   return null;
 }
 
+function publicRegistry(registry) {
+  return {
+    ...registry,
+    claims: (registry.claims ?? []).map((claim) => {
+      const publicClaim = { ...claim };
+      delete publicClaim.giverToken;
+      return publicClaim;
+    }),
+  };
+}
+
+function claimNameKey(name) {
+  return String(name || '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+}
+
 function updateClaim(registry, giftId, profile, state) {
   const claims = registry.claims ?? [];
   const thisGiftClaims = claims.filter((claim) => claim.giftId === giftId);
-  if (thisGiftClaims.some((claim) => claim.state === 'claimed' && claim.giverId !== profile.id)) return registry;
+  const profileNameKey = claimNameKey(profile.displayName || 'Guest');
+  if (state === null) {
+    const ownClaims = thisGiftClaims.filter((claim) => claimNameKey(claim.giverName) === profileNameKey);
+    const ownClaim = ownClaims.find((claim) => claim.state === 'claimed') ?? ownClaims[0];
+    const canClearClaim = Boolean(ownClaim);
+    if (!canClearClaim) return registry;
+    return {
+      ...registry,
+      claims: [
+        ...claims.filter((claim) => claim.giftId !== giftId),
+        ...thisGiftClaims.filter((claim) => claim !== ownClaim),
+      ],
+    };
+  }
+  if (thisGiftClaims.some((claim) => claim.state === 'claimed' && claimNameKey(claim.giverName) !== profileNameKey)) return registry;
   const nextClaim = {
     giftId,
     giverId: String(profile.id || `guest-${randomUUID()}`),
@@ -140,12 +169,16 @@ function updateClaim(registry, giftId, profile, state) {
     giverName: String(profile.displayName || 'Guest').trim(),
     giverMode: profile.mode === 'account' ? 'account' : 'guest',
     ...(profile.avatarUrl ? { giverAvatarUrl: profile.avatarUrl } : {}),
+    ...(profile.mode !== 'account' && profile.claimToken ? { giverToken: profile.claimToken } : {}),
   };
+  const retainedGiftClaims = state === 'considering'
+    ? thisGiftClaims.filter((claim) => claimNameKey(claim.giverName) !== profileNameKey)
+    : thisGiftClaims.filter((claim) => claim.state === 'considering');
   return {
     ...registry,
     claims: [
       ...claims.filter((claim) => claim.giftId !== giftId),
-      ...thisGiftClaims.filter((claim) => claim.giverId !== nextClaim.giverId),
+      ...retainedGiftClaims,
       nextClaim,
     ],
   };
@@ -194,12 +227,12 @@ async function handleApi(request, response, path) {
       return json(response, 403, { error: 'List owners cannot open their own shared list.' });
     }
     if (request.method === 'GET' && path === `/api/shared/${sharedMatch[1]}`) {
-      return json(response, 200, { registry: shared.registry });
+      return json(response, 200, { registry: publicRegistry(shared.registry) });
     }
     if (request.method === 'PATCH' && path.endsWith('/claims')) {
       const body = await readBody(request);
       const giftExists = shared.registry.gifts.some((gift) => gift.id === body.giftId);
-      if (!giftExists || !body.profile || !['considering', 'claimed'].includes(body.state)) {
+      if (!giftExists || !body.profile || (body.state !== null && !['considering', 'claimed'].includes(body.state))) {
         return json(response, 400, { error: 'That claim is not valid.' });
       }
       if (body.profile.mode === 'account' && (!signedInAccount || signedInAccount.id !== body.profile.id)) {
@@ -210,7 +243,7 @@ async function handleApi(request, response, path) {
         : { ...body.profile, mode: 'guest' };
       const nextRegistry = updateClaim(shared.registry, body.giftId, profile, body.state);
       statements.updateRegistry.run(JSON.stringify(nextRegistry), new Date().toISOString(), shared.row.id, shared.row.account_id);
-      return json(response, 200, { registry: nextRegistry });
+      return json(response, 200, { registry: publicRegistry(nextRegistry) });
     }
   }
 
@@ -223,21 +256,39 @@ async function handleApi(request, response, path) {
   if (request.method === 'PUT' && path === '/api/registries') {
     const body = await readBody(request);
     const registries = Array.isArray(body.registries) ? body.registries : [];
+    const existingRegistries = new Map(
+      statements.registries.all(account.id).map((row) => {
+        const registry = JSON.parse(row.data);
+        return [registry.id, registry];
+      }),
+    );
+    const registriesToPersist = registries.map((registry) => {
+      const existingRegistry = existingRegistries.get(registry.id);
+      if (!existingRegistry) return registry;
+      const giftIds = new Set(registry.gifts.map((gift) => gift.id));
+      return {
+        ...registry,
+        claims: (existingRegistry.claims ?? []).filter((claim) => giftIds.has(claim.giftId)),
+      };
+    });
     const timestamp = new Date().toISOString();
     database.exec('BEGIN');
     try {
       statements.deleteRegistries.run(account.id);
-      for (const registry of registries) statements.replaceRegistry.run(registry.id, account.id, JSON.stringify(registry), timestamp);
+      for (const registry of registriesToPersist) statements.replaceRegistry.run(registry.id, account.id, JSON.stringify(registry), timestamp);
       database.exec('COMMIT');
     } catch (error) {
       database.exec('ROLLBACK');
       throw error;
     }
-    return json(response, 200, { registries });
+    return json(response, 200, { registries: registriesToPersist });
   }
   if (request.method === 'GET' && path === '/api/saved-lists') {
     const registries = statements.savedLists.all(account.id)
-      .map((savedList) => findSharedRegistry(savedList.access_code)?.registry)
+      .map((savedList) => {
+        const registry = findSharedRegistry(savedList.access_code)?.registry;
+        return registry ? publicRegistry(registry) : null;
+      })
       .filter(Boolean);
     return json(response, 200, { registries });
   }

@@ -46,6 +46,7 @@ export type ClaimRecord = {
   giverName: string;
   giverMode: 'guest' | 'account';
   giverAvatarUrl?: string;
+  giverToken?: string;
 };
 
 export type Registry = {
@@ -66,6 +67,7 @@ export type GiftGiverProfile = {
   mode: 'guest' | 'account';
   displayName: string;
   avatarUrl?: string;
+  claimToken?: string;
 };
 
 export type RecipientView = {

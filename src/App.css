@@ -698,10 +698,61 @@
     line-height: 1;
 }
 
+.price-range-values label {
+    align-items: center;
+    display: inline-flex;
+    gap: 1px;
+}
+
+.price-range-values input {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    color: var(--ink);
+    font: inherit;
+    min-height: 0;
+    padding: 0;
+    width: 4ch;
+}
+
+.price-range-values input::-webkit-inner-spin-button,
+.price-range-values input::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+}
+
+.price-range-values input[type="number"] {
+    appearance: textfield;
+}
+
+.price-range-values label:last-child input {
+    text-align: right;
+}
+
 .price-range-sliders {
     display: grid;
     height: 15px;
     position: relative;
+}
+
+.price-range-sliders::before {
+    background: var(--line);
+    content: "";
+    height: 4px;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 5px;
+}
+
+.price-range-fill {
+    background: var(--coral);
+    height: 4px;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 5px;
+    z-index: 1;
 }
 
 .price-range-sliders input {
@@ -714,11 +765,14 @@
     min-height: 0;
     padding: 0;
     pointer-events: none;
+    position: relative;
+    z-index: 2;
     width: 100%;
 }
 
 .price-range-sliders input::-webkit-slider-runnable-track {
-    background: var(--line);
+    background: transparent;
+    border: 0;
     height: 4px;
 }
 
@@ -735,7 +789,7 @@
 }
 
 .price-range-sliders input::-moz-range-track {
-    background: var(--line);
+    background: transparent;
     height: 4px;
 }
 
@@ -747,6 +801,16 @@
     height: 10px;
     pointer-events: auto;
     width: 10px;
+}
+
+.sr-only {
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    position: absolute;
+    width: 1px;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
 }
 
 .filter-toolbar-row > .add-gift-button {
@@ -1048,6 +1112,10 @@ a:focus-visible {
 
 .empty-state svg {
     color: var(--coral);
+}
+
+.empty-state .primary-button svg {
+    color: #fff;
 }
 
 .empty-state h3 {
@@ -1594,13 +1662,11 @@ footer span:first-child {
     border: 1px solid var(--line);
     border-radius: 9px;
     color: var(--ink);
-    cursor: pointer;
     display: flex;
     font: inherit;
-    justify-content: space-between;
+    gap: 8px;
     margin-top: 7px;
-    padding: 11px 12px;
-    text-align: left;
+    padding: 0 6px 0 0;
     width: 100%;
 }
 
@@ -1608,9 +1674,47 @@ footer span:first-child {
     border-color: var(--coral);
 }
 
-.saved-list-option span {
+.saved-list-open {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    flex: 1;
+    font: inherit;
+    gap: 10px;
+    min-width: 0;
+    padding: 11px 6px 11px 12px;
+    text-align: left;
+}
+
+.saved-list-open:hover {
+    color: var(--coral-dark);
+}
+
+.saved-list-open span {
     display: grid;
     gap: 3px;
+    min-width: 0;
+}
+
+.saved-list-remove {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 5px;
+    color: var(--muted);
+    cursor: pointer;
+    display: inline-flex;
+    flex: 0 0 auto;
+    justify-content: center;
+    padding: 6px;
+}
+
+.saved-list-remove:hover {
+    background: var(--peach);
+    color: var(--coral-dark);
 }
 
 .saved-list-avatar,
@@ -1627,7 +1731,7 @@ footer span:first-child {
     width: 34px;
 }
 
-.saved-list-option > .saved-list-avatar {
+.saved-list-open > .saved-list-avatar {
     display: inline-flex;
     gap: 0;
 }
@@ -1638,7 +1742,7 @@ footer span:first-child {
     font-weight: 700;
 }
 
-.saved-list-option small {
+.saved-list-open small {
     color: var(--muted);
     font-size: .74rem;
 }

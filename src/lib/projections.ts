@@ -62,6 +62,10 @@ function getGiftClaims(claims: ClaimRecord[], giftId: string) {
   return claims.filter((claim) => claim.giftId === giftId);
 }
 
+function claimNameKey(name: string) {
+  return name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+}
+
 function getGiftClaimSummary(claims: ClaimRecord[], giftId: string) {
   const giftClaims = getGiftClaims(claims, giftId);
   const claimedGift = giftClaims.find((claim) => claim.state === 'claimed');
@@ -203,14 +207,20 @@ export function updateGiftClaim(
   claims: ClaimRecord[],
   giftId: string,
   profile: GiftGiverProfile,
-  state: ClaimState,
+  state: ClaimState | null,
 ) {
-  const displayName = profile.displayName.trim() || 'Taylor';
   const thisGiftClaims = claims.filter((claim) => claim.giftId === giftId);
   const nonTargetGiftClaims = claims.filter((claim) => claim.giftId !== giftId);
-  const otherGiversClaimsForGift = thisGiftClaims.filter(
-    (claim) => claim.giverId !== profile.id,
-  );
+  const profileNameKey = claimNameKey(profile.displayName.trim() || 'Taylor');
+  if (state === null) {
+    const ownClaims = thisGiftClaims.filter((claim) => claimNameKey(claim.giverName) === profileNameKey);
+    const ownClaim = ownClaims.find((claim) => claim.state === 'claimed') ?? ownClaims[0];
+    return ownClaim
+      ? [...nonTargetGiftClaims, ...thisGiftClaims.filter((claim) => claim !== ownClaim)]
+      : claims;
+  }
+
+  const displayName = profile.displayName.trim() || 'Taylor';
   const nextClaim: ClaimRecord = {
     giftId,
     giverId: profile.id,
@@ -228,5 +238,9 @@ export function updateGiftClaim(
     return claims;
   }
 
-  return [...nonTargetGiftClaims, ...otherGiversClaimsForGift, nextClaim];
+  const retainedGiftClaims = state === 'considering'
+    ? thisGiftClaims.filter((claim) => claimNameKey(claim.giverName) !== profileNameKey)
+    : thisGiftClaims.filter((claim) => claim.state === 'considering');
+
+  return [...nonTargetGiftClaims, ...retainedGiftClaims, nextClaim];
 }

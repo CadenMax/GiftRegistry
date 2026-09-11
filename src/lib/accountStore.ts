@@ -102,8 +102,8 @@ export async function getSharedRegistry(accessCode: string) {
 export async function updateSharedClaim(
   accessCode: string,
   giftId: string,
-  profile: { id: string; mode: 'guest' | 'account'; displayName: string; avatarUrl?: string },
-  state: 'considering' | 'claimed',
+  profile: { id: string; mode: 'guest' | 'account'; displayName: string; avatarUrl?: string; claimToken?: string },
+  state: 'considering' | 'claimed' | null,
 ) {
   const response = await request<{ registry: Registry }>(`/api/shared/${encodeURIComponent(accessCode)}/claims`, {
     method: 'PATCH',

@@ -59,6 +59,26 @@ const blankGift: GiftDraft = {
   dependencyText: "",
 };
 
+const guestProfileStorageKey = "giftregistry_guest_profile";
+
+function getStoredGuestProfile(): GiftGiverProfile {
+  try {
+    const storedProfile = JSON.parse(window.localStorage.getItem(guestProfileStorageKey) ?? "null") as Partial<GiftGiverProfile> | null;
+    if (storedProfile?.id && storedProfile.mode === "guest") {
+      return {
+        id: storedProfile.id,
+        mode: "guest",
+        displayName: storedProfile.displayName ?? "",
+        avatarUrl: storedProfile.avatarUrl,
+        claimToken: storedProfile.claimToken ?? crypto.randomUUID(),
+      };
+    }
+  } catch {
+    return { id: `guest-${crypto.randomUUID()}`, mode: "guest", displayName: "", claimToken: crypto.randomUUID() };
+  }
+  return { id: `guest-${crypto.randomUUID()}`, mode: "guest", displayName: "", claimToken: crypto.randomUUID() };
+}
+
 function normaliseLink(link: string) {
   const trimmedLink = link.trim();
   return trimmedLink && !/^https?:\/\//i.test(trimmedLink)
@@ -90,11 +110,7 @@ function App() {
   const [recipientFilters, setRecipientFilters] = useState<GiftFilters>({ sort: "name-asc", categoryIds: [], statusIds: [], minPrice: undefined, maxPrice: undefined, dependency: "all", dependentOnGiftId: "" });
   const [giverFilters, setGiverFilters] = useState<GiftFilters>({ sort: "name-asc", categoryIds: [], statusIds: [], minPrice: undefined, maxPrice: undefined, dependency: "all", dependentOnGiftId: "" });
   const [giverClaimFilter, setGiverClaimFilter] = useState<ClaimFilter>("all");
-  const [giftGiverProfile, setGiftGiverProfile] = useState<GiftGiverProfile>({
-    id: "demo-viewer",
-    mode: "guest",
-    displayName: "",
-  });
+  const [giftGiverProfile, setGiftGiverProfile] = useState<GiftGiverProfile>(getStoredGuestProfile);
   const [accessCode, setAccessCode] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [accessError, setAccessError] = useState("");
@@ -129,6 +145,14 @@ function App() {
         const storedAccount = await getStoredSession();
         if (cancelled) return;
         setAccount(storedAccount);
+        if (storedAccount) {
+          setGiftGiverProfile({
+            id: storedAccount.id,
+            mode: "account",
+            displayName: storedAccount.name,
+            avatarUrl: storedAccount.avatarUrl,
+          });
+        }
         if (sharedCode) {
           setAccessCode(sharedCode);
           try {
@@ -201,6 +225,19 @@ function App() {
   const unlockRegistry = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const code = accessCode.trim().toUpperCase();
+    if (!account) {
+      const guestName = giftGiverProfile.displayName.trim();
+      const storedGuestProfile = getStoredGuestProfile();
+      const guestProfileChanged = storedGuestProfile.displayName.trim() !== guestName;
+      const guestProfile = guestProfileChanged ? {
+        id: `guest-${crypto.randomUUID()}`,
+        mode: "guest" as const,
+        displayName: guestName,
+        claimToken: crypto.randomUUID(),
+      } : { ...giftGiverProfile, mode: "guest" as const, displayName: guestName };
+      window.localStorage.setItem(guestProfileStorageKey, JSON.stringify(guestProfile));
+      setGiftGiverProfile(guestProfile);
+    }
     if (sharedRegistry?.accessCode === code) {
       setIsUnlocked(true);
       setAccessError("");
@@ -218,7 +255,7 @@ function App() {
     }
   };
 
-  const updateClaim = async (giftId: string, state: ClaimState) => {
+  const updateClaim = async (giftId: string, state: ClaimState | null) => {
     if (sharedRegistry && activeSharedCode) {
       const nextRegistry = await updateSharedClaim(activeSharedCode, giftId, giftGiverProfile, state);
       setSharedRegistry(nextRegistry);
@@ -390,6 +427,16 @@ function App() {
           : await signIn(authEmail, authPassword);
       const nextAccount = (await getStoredSession()) ?? authenticatedAccount;
       setAccount(nextAccount);
+      setGiftGiverProfile({
+        id: nextAccount.id,
+        mode: "account",
+        displayName: nextAccount.name,
+        avatarUrl: nextAccount.avatarUrl,
+      });
+      setSharedRegistry(null);
+      setActiveSharedCode("");
+      setIsUnlocked(false);
+      setAccessCode("");
       setWorkspace("recipient");
       setShowProfile(false);
       setShowListSetup(false);
@@ -411,6 +458,7 @@ function App() {
   const signOut = () => {
     clearSession();
     setAccount(null);
+    setGiftGiverProfile(getStoredGuestProfile());
     setWorkspace("recipient");
     setRegistries([]);
     setSavedRegistries([]);
@@ -467,10 +515,14 @@ function App() {
     );
   };
 
+  const removeSavedRegistryByCode = async (accessCodeToRemove: string) => {
+    await removeSavedRegistry(accessCodeToRemove);
+    setSavedRegistries((current) => current.filter((item) => item.accessCode !== accessCodeToRemove));
+  };
+
   const removeCurrentSavedRegistry = async () => {
     if (!sharedRegistry) return;
-    await removeSavedRegistry(sharedRegistry.accessCode);
-    setSavedRegistries((current) => current.filter((item) => item.accessCode !== sharedRegistry.accessCode));
+    await removeSavedRegistryByCode(sharedRegistry.accessCode);
   };
 
   const duplicateList = (sourceRegistry = registry) => {
@@ -484,6 +536,7 @@ function App() {
   const openNewList = () => {
     setListName("");
     setListOccasion("");
+    setDuplicateSource(null);
     setListSetupMode("create");
     setShowListSetup(true);
   };
@@ -516,6 +569,13 @@ function App() {
     if (!account) return;
     const nextAccount = await updateAccountProfile(account, details);
     setAccount(nextAccount);
+    setGiftGiverProfile((current) => ({
+      ...current,
+      id: nextAccount.id,
+      mode: "account",
+      displayName: nextAccount.name,
+      avatarUrl: nextAccount.avatarUrl,
+    }));
     setRegistries((current) =>
       current.map((item) => ({ ...item, ownerName: nextAccount.name })),
     );
@@ -694,6 +754,7 @@ function App() {
           unlocked={isUnlocked}
           filters={giverFilters}
           claimFilter={giverClaimFilter}
+          signedIn={Boolean(account)}
           savedRegistries={savedRegistries}
           canSave={Boolean(account && sharedRegistry)}
           saved={Boolean(sharedRegistry && savedRegistries.some((item) => item.accessCode === sharedRegistry.accessCode))}
@@ -706,6 +767,9 @@ function App() {
           updateClaim={updateClaim}
           saveList={saveCurrentSharedRegistry}
           removeSavedList={removeCurrentSavedRegistry}
+          onRemoveSavedList={(accessCodeToRemove) => {
+            if (window.confirm("Remove this saved list?")) void removeSavedRegistryByCode(accessCodeToRemove);
+          }}
           onDuplicateList={() => duplicateList(sharedRegistry ?? registry)}
           onOpenSavedList={openSavedRegistry}
         />
