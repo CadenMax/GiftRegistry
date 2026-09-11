@@ -1,8 +1,10 @@
 import {
   ArrowRight,
+  Bell,
   BookOpen,
   Gift as GiftIcon,
   LogOut,
+  MessageCircle,
   UserRound,
   UsersRound,
 } from "lucide-react";
@@ -13,6 +15,7 @@ import { GiverWorkspace } from "./components/GiverWorkspace.tsx";
 import { ListSetup } from "./components/ListSetup";
 import { ProfileScreen } from "./components/ProfileScreen";
 import { RecipientWorkspace } from "./components/RecipientWorkspace";
+import { CommunicationPanel } from "./components/CommunicationPanel";
 import { registry as initialRegistry } from "./data/registry";
 import {
   createGiftGiverView,
@@ -24,6 +27,24 @@ import {
   createAccount,
   getAccountRegistries,
   getSavedRegistries,
+  getNotifications,
+  getMessages,
+  getMessageContacts,
+  getGuestMessages,
+  getGuestNotifications,
+  deleteNotification,
+  deleteAllNotifications,
+  deleteGuestNotification,
+  deleteAllGuestNotifications,
+  getGuestMessageContacts,
+  registerGuestPresence,
+  createConversation,
+  sendConversationMessage,
+  leaveConversation,
+  markMessageNotificationsRead,
+  markActivityNotificationsRead,
+  markGuestMessageNotificationsRead,
+  markGuestActivityNotificationsRead,
   getSharedRegistry,
   getStoredSession,
   saveAccountRegistries,
@@ -33,7 +54,7 @@ import {
   updateSharedClaim,
   updateAccountProfile,
 } from "./lib/accountStore";
-import type { ProfileDetails, RecipientAccount } from "./lib/accountStore";
+import type { AppMessage, AppNotification, MessageContact, ProfileDetails, RecipientAccount } from "./lib/accountStore";
 import type {
   ClaimFilter,
   ClaimState,
@@ -136,6 +157,14 @@ function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showOwnListsPrompt, setShowOwnListsPrompt] = useState(false);
   const [activeSharedCode, setActiveSharedCode] = useState(sharedCode);
+  const [showCommunication, setShowCommunication] = useState(false);
+  const [communicationMode, setCommunicationMode] = useState<"notifications" | "messages">("notifications");
+  const [focusContactId, setFocusContactId] = useState<string | undefined>();
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [messages, setMessages] = useState<AppMessage[]>([]);
+  const [messageContacts, setMessageContacts] = useState<MessageContact[]>([]);
+  const unreadMessageCount = notifications.filter((notification) => !notification.read_at && notification.type === "message").length;
+  const unreadActivityCount = notifications.filter((notification) => !notification.read_at && notification.type !== "message").length;
   const giverRegistry = sharedRegistry ?? registry;
 
   useEffect(() => {
@@ -158,9 +187,14 @@ function App() {
           try {
             const nextSharedRegistry = await getSharedRegistry(sharedCode);
             if (cancelled) return;
+            if (!storedAccount) {
+              const guestProfile = getStoredGuestProfile();
+              await registerGuestPresence(sharedCode, { ...guestProfile, mode: "guest" });
+            }
             setSharedRegistry(nextSharedRegistry);
             setActiveSharedCode(sharedCode);
             setWorkspace("giver");
+            setIsUnlocked(true);
             if (storedAccount) {
               setGiftGiverProfile({
                 id: storedAccount.id,
@@ -168,7 +202,6 @@ function App() {
                 displayName: storedAccount.name,
                 avatarUrl: storedAccount.avatarUrl,
               });
-              setIsUnlocked(true);
             }
           } catch (error) {
             if (!cancelled) setAccessError(error instanceof Error ? error.message : "That shared list could not be opened.");
@@ -193,6 +226,40 @@ function App() {
   useEffect(() => {
     if (account && sessionReady) void saveAccountRegistries(account, registries);
   }, [account, registries, sessionReady]);
+
+  useEffect(() => {
+    if (!isUnlocked || !activeSharedCode) return;
+    let cancelled = false;
+    const refreshSharedRegistry = async () => {
+      try {
+        const nextRegistry = await getSharedRegistry(activeSharedCode);
+        if (!cancelled) setSharedRegistry((current) => current && current.accessCode === nextRegistry.accessCode ? nextRegistry : current);
+      } catch {
+        // Keep the current list visible if a background refresh briefly fails.
+      }
+    };
+    const interval = window.setInterval(() => void refreshSharedRegistry(), 5000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, [activeSharedCode, isUnlocked]);
+
+  useEffect(() => {
+    if ((!account && !sharedRegistry) || !sessionReady) return;
+    let cancelled = false;
+    const refreshCommunication = async () => {
+      const [notificationsResult, messagesResult, contactsResult] = await Promise.allSettled([
+        account ? getNotifications() : getGuestNotifications(giftGiverProfile.id, giftGiverProfile.claimToken),
+        account ? getMessages() : getGuestMessages(giftGiverProfile.id, giftGiverProfile.claimToken),
+        account ? getMessageContacts() : getGuestMessageContacts(activeSharedCode, giftGiverProfile.id, giftGiverProfile.claimToken, giftGiverProfile.displayName),
+      ]);
+      if (cancelled) return;
+      if (notificationsResult.status === "fulfilled") setNotifications(notificationsResult.value);
+      if (messagesResult.status === "fulfilled") setMessages(messagesResult.value);
+      if (contactsResult.status === "fulfilled") setMessageContacts(contactsResult.value);
+    };
+    void refreshCommunication();
+    const interval = window.setInterval(() => void refreshCommunication(), 15000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, [account, activeSharedCode, giftGiverProfile.claimToken, giftGiverProfile.displayName, giftGiverProfile.id, sessionReady, sharedRegistry]);
 
   const recipientView = useMemo(
     () =>
@@ -245,6 +312,10 @@ function App() {
     }
     try {
       const nextSharedRegistry = await getSharedRegistry(code);
+      if (!account) {
+        const guestProfile = getStoredGuestProfile();
+        await registerGuestPresence(code, { ...guestProfile, mode: "guest" });
+      }
       setSharedRegistry(nextSharedRegistry);
       setActiveSharedCode(code);
       setIsUnlocked(true);
@@ -525,6 +596,24 @@ function App() {
     await removeSavedRegistryByCode(sharedRegistry.accessCode);
   };
 
+  const sendAppMessage = async (recipientIds: string[], registryId: string, body: string, existingConversationId?: string) => {
+    if (existingConversationId) {
+      await sendConversationMessage(existingConversationId, giftGiverProfile, body);
+      setMessages(account ? await getMessages() : await getGuestMessages(giftGiverProfile.id, giftGiverProfile.claimToken));
+      return;
+    }
+    const selectedContacts = messageContacts.filter((contact) => recipientIds.includes(contact.id) && contact.registryId === registryId);
+    const conversationId = await createConversation(activeSharedCode, registryId, giftGiverProfile, selectedContacts);
+    await sendConversationMessage(conversationId, giftGiverProfile, body);
+    setMessages(account ? await getMessages() : await getGuestMessages(giftGiverProfile.id, giftGiverProfile.claimToken));
+  };
+
+  const messagePerson = (personId: string, _personName: string) => {
+    setCommunicationMode("messages");
+    setFocusContactId(messageContacts.some((contact) => contact.id === personId) ? personId : undefined);
+    setShowCommunication(true);
+  };
+
   const duplicateList = (sourceRegistry = registry) => {
     setDuplicateSource(sourceRegistry);
     setListName(`${sourceRegistry.listName} copy`);
@@ -684,14 +773,19 @@ function App() {
               <button aria-label="Open profile" className="icon-button" onClick={() => setShowProfile(true)} title="Profile" type="button">
                 {account.avatarUrl ? <img alt="" src={account.avatarUrl} /> : <UserRound size={18} />}
               </button>
+              <button aria-label="Open notifications" className="text-button communication-trigger" onClick={() => { setCommunicationMode("notifications"); setFocusContactId(undefined); setShowCommunication(true); }} title="Notifications" type="button">
+                <Bell size={16} /> Notifications{unreadActivityCount ? <span className="notification-count">{unreadActivityCount}</span> : null}
+              </button>
+              <button aria-label="Open Messenger" className="text-button communication-trigger" onClick={() => { setCommunicationMode("messages"); setFocusContactId(undefined); setShowCommunication(true); }} title="Messenger" type="button"><MessageCircle size={16} /> Messenger{unreadMessageCount ? <span className="notification-count message-count">{unreadMessageCount}</span> : null}</button>
               <button aria-label="Log out" className="icon-button" onClick={signOut} title="Log out" type="button">
                 <LogOut size={18} />
               </button>
             </>
           ) : (
-            <button className="text-button" onClick={() => setWorkspace("recipient")} type="button">
-              Create account <ArrowRight size={15} />
-            </button>
+            <>
+              {isUnlocked ? <><button className="text-button communication-trigger" onClick={() => { setCommunicationMode("notifications"); setFocusContactId(undefined); setShowCommunication(true); }} type="button"><Bell size={16} /> Notifications{unreadActivityCount ? <span className="notification-count">{unreadActivityCount}</span> : null}</button><button className="text-button communication-trigger" onClick={() => { setCommunicationMode("messages"); setFocusContactId(undefined); setShowCommunication(true); }} type="button"><MessageCircle size={16} /> Messenger{unreadMessageCount ? <span className="notification-count message-count">{unreadMessageCount}</span> : null}</button></> : null}
+              <button className="text-button" onClick={() => setWorkspace("recipient")} type="button">Create account <ArrowRight size={15} /></button>
+            </>
           )}
         </div>
       </header>
@@ -772,6 +866,7 @@ function App() {
           }}
           onDuplicateList={() => duplicateList(sharedRegistry ?? registry)}
           onOpenSavedList={openSavedRegistry}
+          onMessage={messagePerson}
         />
       )}
       {showOwnListsPrompt ? (
@@ -788,6 +883,7 @@ function App() {
           </section>
         </div>
       ) : null}
+      {showCommunication && (account || isUnlocked) ? <CommunicationPanel key={`${communicationMode}-${focusContactId ?? "communication"}`} panelMode={communicationMode} notifications={notifications} messages={messages} contacts={messageContacts} currentUserId={giftGiverProfile.id} currentUserName={giftGiverProfile.displayName} currentUserAvatar={giftGiverProfile.avatarUrl} focusContactId={focusContactId} onSend={sendAppMessage} onMarkMessageNotificationsRead={() => { void (account ? markMessageNotificationsRead() : markGuestMessageNotificationsRead(giftGiverProfile.id, giftGiverProfile.claimToken)); setNotifications((current) => current.map((notification) => notification.type === "message" ? { ...notification, read_at: notification.read_at ?? new Date().toISOString() } : notification)); }} onLeaveConversation={async (chat) => { await leaveConversation(chat, giftGiverProfile); setMessages(account ? await getMessages() : await getGuestMessages(giftGiverProfile.id)); }} onDeleteNotification={(id) => { void (account ? deleteNotification(id) : deleteGuestNotification(id, giftGiverProfile.id, giftGiverProfile.claimToken)); setNotifications((current) => current.filter((notification) => notification.id !== id)); }} onDeleteAllNotifications={() => { void (account ? deleteAllNotifications() : deleteAllGuestNotifications(giftGiverProfile.id, giftGiverProfile.claimToken)); setNotifications([]); }} onMarkNotificationsRead={() => { void (account ? markActivityNotificationsRead() : markGuestActivityNotificationsRead(giftGiverProfile.id, giftGiverProfile.claimToken)); setNotifications((current) => current.map((notification) => notification.type === "message" ? notification : { ...notification, read_at: notification.read_at ?? new Date().toISOString() })); }} onClose={() => { setShowCommunication(false); setFocusContactId(undefined); }} /> : null}
       <footer>
         <span>HaulBoard</span>
         <span>Make a list. Share it.</span>

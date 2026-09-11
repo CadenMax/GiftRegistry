@@ -1,6 +1,7 @@
 import { ArrowLeft, Gift as GiftIcon, ImagePlus, LogOut, UserRound } from "lucide-react";
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import type { ProfileDetails, RecipientAccount } from "../lib/accountStore";
+import { AdminPeople } from "./AdminPeople";
 
 type ProfileScreenProps = {
   account: RecipientAccount;
@@ -90,6 +91,7 @@ export function ProfileScreen({ account, listCount, onBack, onSignOut, onSave }:
           <button className="primary-button" disabled={saving} type="submit">{saving ? "Saving..." : "Save profile"}</button>
           <button className="secondary-button profile-logout" onClick={onSignOut} type="button"><LogOut size={16} /> Log out</button>
         </form>
+        <AdminPeople />
       </section>
       <footer>
         <span>HaulBoard</span>

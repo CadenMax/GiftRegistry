@@ -28,6 +28,7 @@ type GiverWorkspaceProps = {
     onRemoveSavedList: (accessCode: string) => void;
     onDuplicateList: () => void;
     onOpenSavedList: (registry: Registry) => void;
+    onMessage: (personId: string, personName: string) => void;
 };
 
 function profileInitial(profile: GiftGiverProfile) {
@@ -54,29 +55,29 @@ function OwnerBadge({ registry }: { registry: Registry }) {
     );
 }
 
-function ClaimPeople({ people }: { people: GiftGiverView["gifts"][number]["claimPeople"] }) {
+function ClaimPeople({ people, onMessage }: { people: GiftGiverView["gifts"][number]["claimPeople"]; onMessage: (personId: string, personName: string) => void }) {
     const considering = people.filter((person) => person.state === "considering");
     const bought = people.filter((person) => person.state === "claimed");
     if (people.length === 0) return null;
 
     return (
         <div className="claim-people">
-            {considering.length > 0 ? <ClaimPeopleRow label="Considering" people={considering} /> : null}
-            {bought.length > 0 ? <ClaimPeopleRow label="Bought by" people={bought} /> : null}
+            {considering.length > 0 ? <ClaimPeopleRow label="Considering" people={considering} onMessage={onMessage} /> : null}
+            {bought.length > 0 ? <ClaimPeopleRow label="Bought by" people={bought} onMessage={onMessage} /> : null}
         </div>
     );
 }
 
-function ClaimPeopleRow({ label, people }: { label: string; people: GiftGiverView["gifts"][number]["claimPeople"] }) {
+function ClaimPeopleRow({ label, people, onMessage }: { label: string; people: GiftGiverView["gifts"][number]["claimPeople"]; onMessage: (personId: string, personName: string) => void }) {
     return (
         <div className="claim-people-row">
             <span className="claim-people-label">{label}</span>
             <span className="claim-people-list">
                 {people.map((person) => (
-                    <span className="claim-person" key={`${person.id}-${person.state}`} title={person.name}>
+                    <button className="claim-person" key={`${person.id}-${person.state}`} onClick={() => onMessage(person.id, person.name)} title={`Message ${person.name}`} type="button">
                         {person.avatarUrl ? <img alt="" src={person.avatarUrl} /> : <span>{person.name.trim().charAt(0).toUpperCase() || "?"}</span>}
                         {person.name}
-                    </span>
+                    </button>
                 ))}
             </span>
         </div>
@@ -88,7 +89,7 @@ function ownsClaim(gift: GiftGiverView["gifts"][number], viewerName: string, sta
     return gift.claimPeople.some((person) => person.name.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase() === nameKey && person.state === state);
 }
 
-export function GiverWorkspace({ registry, view, profile, accessCode, accessError, unlocked, filters, claimFilter, signedIn, canSave, saved, savedRegistries, setAccessCode, setProfile, setFilters, setClaimFilter, unlock, setUnlocked, updateClaim, saveList, removeSavedList, onRemoveSavedList, onDuplicateList, onOpenSavedList }: GiverWorkspaceProps) {
+export function GiverWorkspace({ registry, view, profile, accessCode, accessError, unlocked, filters, claimFilter, signedIn, canSave, saved, savedRegistries, setAccessCode, setProfile, setFilters, setClaimFilter, unlock, setUnlocked, updateClaim, saveList, removeSavedList, onRemoveSavedList, onDuplicateList, onOpenSavedList, onMessage }: GiverWorkspaceProps) {
     const viewerName = profile.displayName.trim() || "Taylor";
 
     return (
@@ -132,7 +133,7 @@ export function GiverWorkspace({ registry, view, profile, accessCode, accessErro
                                             <div className="gift-title-row"><div>{gift.status ? <span className="gift-status" style={{ "--tag-color": gift.statusColor } as CSSProperties}>{gift.status}</span> : null}<h3>{gift.title}</h3><p>{gift.description || "No description."}</p></div></div>
                                             <div className="gift-footer"><span className="gift-category" style={{ "--tag-color": gift.categoryColor } as CSSProperties}>{gift.categoryName}</span><strong>{gift.priceLabel}</strong></div>
                                             {gift.dependenciesLabel ? <div className="gift-dependency dependency-alert"><ChevronDown size={14} /> Also consider: {gift.dependenciesLabel}</div> : null}
-                                            <ClaimPeople people={gift.claimPeople} />
+                                            <ClaimPeople people={gift.claimPeople} onMessage={onMessage} />
                                             <div className="gift-actions"><button disabled={gift.claimState === "claimed"} onClick={() => updateClaim(gift.id, ownsClaim(gift, viewerName, "considering") ? null : "considering")} type="button">{ownsClaim(gift, viewerName, "considering") ? "Undo considering this" : "I am considering this"}</button><button disabled={gift.claimState === "claimed" && !ownsClaim(gift, viewerName, "claimed")} onClick={() => updateClaim(gift.id, ownsClaim(gift, viewerName, "claimed") ? null : "claimed")} type="button">{ownsClaim(gift, viewerName, "claimed") ? "Undo buying this" : "I am buying this"}</button></div>
                                         </div>
                                     </article>

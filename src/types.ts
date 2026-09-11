@@ -54,6 +54,7 @@ export type Registry = {
   listName: string;
   occasion: string;
   ownerName: string;
+  ownerId?: string;
   ownerAvatarUrl?: string;
   accessCode: string;
   categories: Category[];
