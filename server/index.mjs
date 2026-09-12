@@ -8,12 +8,16 @@ import { handleAuthApi } from './authRoutes.mjs';
 import { handleSharedApi } from './sharedRoutes.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const dataDirectory = join(root, 'data');
+const dataDirectory = resolve(process.env.DATA_DIR ?? join(root, 'data'));
 mkdirSync(dataDirectory, { recursive: true });
 const database = new DatabaseSync(join(dataDirectory, 'kindlist.sqlite'));
 const port = Number(process.env.PORT ?? 3001);
 const isProduction = process.env.NODE_ENV === 'production';
+const trustProxy = process.env.TRUST_PROXY === 'true';
 const maxBodyBytes = 8 * 1024 * 1024;
+const authRateLimit = new Map();
+const authRateWindowMs = 15 * 60 * 1000;
+const authRateLimitMax = 10;
 
 database.exec(`
   PRAGMA foreign_keys = ON;
@@ -770,10 +774,34 @@ function setSecurityHeaders(response) {
   if (isProduction) response.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 }
 
+function requestAddress(request) {
+  if (trustProxy) return String(request.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || request.socket.remoteAddress || 'unknown';
+  return request.socket.remoteAddress || 'unknown';
+}
+
+function checkAuthRateLimit(request, path) {
+  const key = `${requestAddress(request)}:${path}`;
+  const now = Date.now();
+  const recentAttempts = (authRateLimit.get(key) ?? []).filter((timestamp) => now - timestamp < authRateWindowMs);
+  recentAttempts.push(now);
+  authRateLimit.set(key, recentAttempts);
+  if (authRateLimit.size > 1000) {
+    for (const [storedKey, timestamps] of authRateLimit) {
+      if (timestamps.every((timestamp) => now - timestamp >= authRateWindowMs)) authRateLimit.delete(storedKey);
+    }
+  }
+  return recentAttempts.length <= authRateLimitMax;
+}
+
 const server = createServer(async (request, response) => {
   setSecurityHeaders(response);
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
   if (url.pathname.startsWith('/api/')) {
+    if (request.method === 'POST' && (url.pathname === '/api/auth/register' || url.pathname === '/api/auth/login') && !checkAuthRateLimit(request, url.pathname)) {
+      response.setHeader('Retry-After', '900');
+      json(response, 429, { error: 'Too many authentication attempts. Try again later.' });
+      return;
+    }
     try { await handleApi(request, response, url.pathname); }
     catch (error) {
       console.error(error);
@@ -792,4 +820,8 @@ const server = createServer(async (request, response) => {
   }
 });
 
-server.listen(port, () => console.log(`kindlist server listening on http://localhost:${port}`));
+server.listen(port, () => {
+  const address = server.address();
+  const listeningPort = typeof address === 'object' && address ? address.port : port;
+  console.log(`kindlist server listening on http://localhost:${listeningPort}`);
+});

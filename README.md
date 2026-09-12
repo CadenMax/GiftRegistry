@@ -1,4 +1,4 @@
-# HaulBoard
+# GiftRegistry
 
 Shared gift lists for birthdays, Christmas, anniversaries, and any occasion that needs a haul.
 
@@ -33,6 +33,22 @@ This mirrors the intended backend/API design: recipients should never receive pr
 
 The starter registry intentionally contains no gift items. Add a first gift from the recipient workspace, then share the generated access code with gift givers.
 
+## Production deployment
+
+The supported deployment shape is one Node.js process behind an HTTPS reverse proxy, with the `data/` directory mounted on persistent storage. SQLite is intentionally used for a small self-hosted installation; do not run multiple application instances against the same database file.
+
+Example environment:
+
+```bash
+NODE_ENV=production
+PORT=3001
+TRUST_PROXY=true
+```
+
+Set `TRUST_PROXY=true` only when the process is behind a trusted proxy that sets `X-Forwarded-For`. The server uses that address for authentication rate limiting. Terminate TLS at the proxy, forward requests to the Node process, and restrict direct access to the application port.
+
+Back up `data/kindlist.sqlite` regularly while the server is stopped or using a SQLite-consistent backup method. Treat shared access codes as bearer credentials: anyone who has a code can view and interact with that list.
+
 ## SQL persistence
 
 The frontend does not store accounts, sessions, passwords, or registries in browser `localStorage`. The Node server owns authentication and persistence:
@@ -59,7 +75,7 @@ For a single hosted process, build the frontend and start the server:
 npm start
 ```
 
-Set `PORT` when the host provides a port, and persist the `data/` directory or configure a managed SQL database before deploying multiple server instances. The current adapter uses SQLite; the API boundary can be moved to PostgreSQL or another hosted SQL provider without exposing database credentials to the browser.
+Set `PORT` when the host provides a port. The current adapter uses SQLite; the API boundary can be moved to PostgreSQL or another hosted SQL provider before deploying multiple server instances.
 
 ## Development
 
