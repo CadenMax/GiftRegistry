@@ -71,12 +71,22 @@ export function useGiftEditor({ registry, setRegistry }: UseGiftEditorOptions) {
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.addEventListener("load", () =>
-      setNewGift((current) => ({
-        ...current,
-        imageUrl: String(reader.result ?? ""),
-      })),
-    );
+    reader.addEventListener("load", () => {
+      const source = new Image();
+      source.addEventListener("load", () => {
+        const maxDimension = 1200;
+        const scale = Math.min(1, maxDimension / Math.max(source.naturalWidth, source.naturalHeight));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(source.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(source.naturalHeight * scale));
+        canvas.getContext("2d")?.drawImage(source, 0, 0, canvas.width, canvas.height);
+        setNewGift((current) => ({
+          ...current,
+          imageUrl: canvas.toDataURL("image/jpeg", 0.82),
+        }));
+      });
+      source.src = String(reader.result ?? "");
+    });
     reader.readAsDataURL(file);
   };
 

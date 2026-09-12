@@ -811,7 +811,19 @@ const server = createServer(async (request, response) => {
   }
   const filePath = url.pathname === '/' ? join(root, 'dist', 'index.html') : join(root, 'dist', url.pathname);
   if (existsSync(filePath)) {
-    const contentType = filePath.endsWith('.html') ? 'text/html; charset=utf-8' : filePath.endsWith('.css') ? 'text/css; charset=utf-8' : 'application/javascript; charset=utf-8';
+    const contentType = filePath.endsWith('.html')
+      ? 'text/html; charset=utf-8'
+      : filePath.endsWith('.css')
+        ? 'text/css; charset=utf-8'
+        : filePath.endsWith('.svg')
+          ? 'image/svg+xml'
+          : filePath.endsWith('.json')
+            ? 'application/json; charset=utf-8'
+            : filePath.endsWith('.png')
+              ? 'image/png'
+              : filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')
+                ? 'image/jpeg'
+                : 'application/javascript; charset=utf-8';
     response.writeHead(200, { 'Content-Type': contentType });
     response.end(readFileSync(filePath));
   } else {

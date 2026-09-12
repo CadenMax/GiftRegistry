@@ -1029,6 +1029,14 @@ textarea {
     resize: vertical;
 }
 
+@media (max-width: 560px) {
+    select,
+    input,
+    textarea {
+        font-size: 16px;
+    }
+}
+
 button {
     cursor: pointer;
     font: inherit;
