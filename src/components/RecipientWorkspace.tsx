@@ -15,18 +15,9 @@ import { useState } from "react";
 import type { ChangeEvent, CSSProperties, Dispatch, FormEvent, SetStateAction } from "react";
 import { GiftFilterControls } from "./GiftFilterControls";
 import { DescriptionDialog } from "./DescriptionDialog";
-import type { Gift, GiftFilters, RecipientView, Registry } from "../types";
-
-type GiftDraft = Omit<Gift, "id" | "addedAt">;
-
-const themeColors = [
-    { name: "Coral", value: "#e7a08f" },
-    { name: "Peach", value: "#f4c7a1" },
-    { name: "Sunshine", value: "#e8d49a" },
-    { name: "Sage", value: "#b9d4ad" },
-    { name: "Sky", value: "#b7d6df" },
-    { name: "Lilac", value: "#c9c2d8" },
-];
+import { ColorPalette } from "./ColorPalette";
+import { DependencySelector } from "./DependencySelector";
+import type { GiftDraft, GiftFilters, RecipientView, Registry } from "../types";
 
 type RecipientWorkspaceProps = {
     registry: Registry;
@@ -199,9 +190,6 @@ export function RecipientWorkspace({
 }
 
 type Option = { id: string; name: string; color?: string };
-function ColorPalette({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-    return <div aria-label={label} className="color-palette" role="radiogroup">{themeColors.map((color) => <button aria-label={color.name} aria-pressed={value === color.value} className={`palette-swatch${value === color.value ? " selected" : ""}`} key={color.value} onClick={() => onChange(color.value)} style={{ backgroundColor: color.value }} title={color.name} type="button" />)}</div>;
-}
 
 function OptionSettings({ title, value, placeholder, onChange, onAdd, options, onDelete, onOptionColorChange }: { title: string; value: string; placeholder: string; onChange: (value: string) => void; onAdd: () => void; options: Option[]; onDelete: (id: string) => void; onOptionColorChange: (id: string, color: string) => void }) {
     return <div className="settings-group"><strong>{title}</strong><div className="settings-add"><input aria-label={placeholder} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} value={value} /><button aria-label={`Add ${title.slice(0, -1).toLowerCase()}`} className="small-button" onClick={onAdd} type="button"><Plus size={16} /></button></div>{options.map((option) => <div className="setting-option" key={option.id}><span className="setting-option-name"><span className="option-swatch" style={{ backgroundColor: option.color ?? "#e5c7b8" }} />{option.name}</span><span className="setting-option-actions"><ColorPalette label={`${option.name} color`} value={option.color ?? "#e5c7b8"} onChange={(color) => onOptionColorChange(option.id, color)} /><button aria-label={`Delete ${option.name}`} className="delete-button" onClick={() => onDelete(option.id)} title={`Delete ${title.slice(0, -1).toLowerCase()}`} type="button"><Trash2 size={15} /></button></span></div>)}</div>;
@@ -230,7 +218,3 @@ function GiftForm({ registry, editingGiftId, newGift, newCategory, newStatus, se
     return <form className="add-gift-form" onSubmit={addGift}><div className="form-heading"><div><span className="eyebrow">Gift details</span><h3>{editingGiftId ? "Edit gift" : "Add a gift"}</h3></div><button className="text-button" onClick={() => setShowAddGift(false)} type="button">Cancel</button></div><div className="form-grid"><label>Gift name<input autoFocus required onChange={(event) => setNewGift({ ...newGift, title: event.target.value })} placeholder="What are you looking for?" value={newGift.title} /></label><label>Price <span className="optional-label">optional</span><input min="0" onChange={(event) => setNewGift({ ...newGift, price: event.target.value === "" ? undefined : Number(event.target.value) })} placeholder="0.00" step="0.01" type="number" value={newGift.price ?? ""} /></label><label className="wide-field">Description <span className="optional-label">optional</span><textarea onChange={(event) => setNewGift({ ...newGift, description: event.target.value })} placeholder="Add a short description." value={newGift.description ?? ""} /></label><label>Category <span className="optional-label">optional</span><select onChange={(event) => setNewGift({ ...newGift, categoryId: event.target.value || undefined })} value={newGift.categoryId ?? ""}><option value="">No category</option>{registry.categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><div className="inline-category"><label>New category <span className="optional-label">optional</span><input onChange={(event) => setNewCategory(event.target.value)} onKeyDown={saveCategoryOnEnter} placeholder="e.g. Technology" value={newCategory} /></label><button aria-label="Create category" className="small-button" onClick={() => addCategory(true)} title="Create category" type="button"><Plus size={16} /></button></div><label>Status <span className="optional-label">optional</span><select onChange={(event) => setNewGift({ ...newGift, status: event.target.value || undefined })} value={newGift.status ?? ""}><option value="">No status</option>{registry.statuses.map((status) => <option key={status.id} value={status.id}>{status.name}</option>)}</select></label><div className="inline-status"><label>New status <span className="optional-label">optional</span><input onChange={(event) => setNewStatus(event.target.value)} onKeyDown={saveStatusOnEnter} placeholder="e.g. Still deciding" value={newStatus} /></label><button aria-label="Create status" className="small-button" onClick={() => addStatus(true)} title="Create status" type="button"><Plus size={16} /></button></div><DependencySelector editingGiftId={editingGiftId} gifts={registry.gifts} selectedIds={newGift.dependsOn} onChange={(dependsOn) => setNewGift({ ...newGift, dependsOn })} /><label className="wide-field">Image URL <span className="optional-label">optional</span><input onChange={(event) => setNewGift({ ...newGift, imageUrl: event.target.value })} placeholder="example.com/image.jpg" type="text" value={newGift.imageUrl ?? ""} /></label><label className="wide-field">Upload an image <span className="optional-label">optional</span><input accept="image/*" onChange={handleImageFile} type="file" /></label><label className="wide-field">Item Link <span className="optional-label">optional</span><input onChange={(event) => setNewGift({ ...newGift, linkUrl: event.target.value })} placeholder="amazon.com/green-tshirt" type="text" value={newGift.linkUrl ?? ""} /></label></div><button className="primary-button" type="submit">{editingGiftId ? "Save changes" : "Add to list"} <ArrowRight size={17} /></button></form>;
 }
 
-function DependencySelector({ editingGiftId, gifts, selectedIds, onChange }: { editingGiftId: string | null; gifts: Gift[]; selectedIds: string[]; onChange: (dependsOn: string[]) => void }) {
-    const selectableGifts = gifts.filter((gift) => gift.id !== editingGiftId);
-    return <div className="wide-field dependency-selector"><span className="field-label">Dependency items <span className="optional-label">optional</span></span>{selectableGifts.length ? <div aria-label="Dependency items" className="dependency-options" role="group">{selectableGifts.map((gift) => { const selected = selectedIds.includes(gift.id); return <button aria-pressed={selected} className={`dependency-option${selected ? " selected" : ""}`} key={gift.id} onClick={() => onChange(selected ? selectedIds.filter((id) => id !== gift.id) : [...selectedIds, gift.id])} type="button">{gift.title}{selected ? <Check size={15} /> : null}</button>; })}</div> : <span className="dependency-empty">Add another gift first to create a dependency.</span>}</div>;
-}

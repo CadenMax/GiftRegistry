@@ -54,30 +54,18 @@ import {
   updateSharedClaim,
   updateAccountProfile,
 } from "./lib/accountStore";
+import { clearSharedListUrl, getSharedListCode, setSharedListUrl } from "./lib/sharedListUrl";
+import { normaliseLink, useGiftEditor } from "./lib/useGiftEditor";
 import type { AppMessage, AppNotification, MessageContact, ProfileDetails, RecipientAccount } from "./lib/accountStore";
 import type {
   ClaimFilter,
   ClaimState,
-  Gift,
   GiftGiverProfile,
   GiftFilters,
   Registry,
 } from "./types";
 
 type Workspace = "recipient" | "giver";
-
-type GiftDraft = Omit<Gift, "id" | "addedAt">;
-
-const blankGift: GiftDraft = {
-  title: "",
-  description: "",
-  imageUrl: "",
-  linkUrl: "",
-  price: undefined,
-  categoryId: "",
-  status: "",
-  dependsOn: [],
-};
 
 const guestProfileStorageKey = "giftregistry_guest_profile";
 
@@ -99,27 +87,8 @@ function getStoredGuestProfile(): GiftGiverProfile {
   return { id: `guest-${crypto.randomUUID()}`, mode: "guest", displayName: "", claimToken: crypto.randomUUID() };
 }
 
-function normaliseLink(link: string) {
-  const trimmedLink = link.trim();
-  return trimmedLink && !/^https?:\/\//i.test(trimmedLink)
-    ? `https://${trimmedLink}`
-    : trimmedLink;
-}
-
-function clearSharedListUrl() {
-  window.history.replaceState({}, document.title, window.location.pathname);
-}
-
-function setSharedListUrl(code: string) {
-  const url = new URL(window.location.href);
-  url.search = "";
-  url.searchParams.set("list", code);
-  url.hash = "";
-  window.history.replaceState({}, document.title, `${url.pathname}?${url.searchParams.toString()}`);
-}
-
 function App() {
-  const sharedCode = new URLSearchParams(window.location.search).get("list")?.trim().toUpperCase() ?? "";
+  const sharedCode = getSharedListCode();
   const [account, setAccount] = useState<RecipientAccount | null>(null);
   const [registries, setRegistries] = useState<Registry[]>([]);
   const [savedRegistries, setSavedRegistries] = useState<Registry[]>([]);
@@ -146,9 +115,18 @@ function App() {
   const [accessCode, setAccessCode] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [accessError, setAccessError] = useState("");
-  const [showAddGift, setShowAddGift] = useState(false);
-  const [editingGiftId, setEditingGiftId] = useState<string | null>(null);
-  const [newGift, setNewGift] = useState<GiftDraft>(blankGift);
+  const {
+    showAddGift,
+    setShowAddGift,
+    editingGiftId,
+    setEditingGiftId,
+    newGift,
+    setNewGift,
+    addGift,
+    editGift,
+    deleteGift,
+    handleImageFile,
+  } = useGiftEditor({ registry, setRegistry });
   const [copied, setCopied] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [newStatus, setNewStatus] = useState("");
@@ -351,54 +329,6 @@ function App() {
     }));
   };
 
-  const addGift = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!newGift.title.trim()) return;
-    const { dependencyText: _legacyDependencyText, ...giftDraft } = newGift as GiftDraft & { dependencyText?: string };
-    setRegistry((current) => ({
-      ...current,
-      gifts: editingGiftId
-        ? current.gifts.map((gift) =>
-            gift.id === editingGiftId
-              ? {
-                  ...gift,
-                  ...giftDraft,
-                  title: giftDraft.title.trim(),
-                  linkUrl: normaliseLink(giftDraft.linkUrl ?? ""),
-                }
-              : gift,
-          )
-        : [
-            ...current.gifts,
-            {
-              ...giftDraft,
-              id: `gift-${Date.now()}`,
-              title: giftDraft.title.trim(),
-              linkUrl: normaliseLink(giftDraft.linkUrl ?? ""),
-              addedAt: new Date().toISOString(),
-            },
-          ],
-    }));
-    setNewGift({ ...blankGift });
-    setEditingGiftId(null);
-    setShowAddGift(false);
-  };
-
-  const editGift = (giftId: string) => {
-    const gift = registry.gifts.find((item) => item.id === giftId);
-    if (!gift) return;
-    setNewGift(gift);
-    setEditingGiftId(giftId);
-    setShowAddGift(true);
-  };
-
-  const deleteGift = (giftId: string) =>
-    setRegistry((current) => ({
-      ...current,
-      gifts: current.gifts.filter((gift) => gift.id !== giftId),
-      claims: current.claims.filter((claim) => claim.giftId !== giftId),
-    }));
-
   const addCategory = (assignToGift = true) => {
     if (!newCategory.trim()) return;
     const id = newCategory.trim().toLowerCase().replace(/\s+/g, "-");
@@ -475,19 +405,6 @@ function App() {
     setNewGift((current) =>
       current.status === statusId ? { ...current, status: undefined } : current,
     );
-  };
-
-  const handleImageFile = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.addEventListener("load", () =>
-      setNewGift((current) => ({
-        ...current,
-        imageUrl: String(reader.result ?? ""),
-      })),
-    );
-    reader.readAsDataURL(file);
   };
 
   const copyCode = async () => {

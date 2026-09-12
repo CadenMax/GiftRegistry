@@ -1,5 +1,6 @@
-import { Bell, MessageCircle, Send, Users, X } from "lucide-react";
+import { Bell, MessageCircle, Users, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ChatComposer } from "./ChatComposer";
 import type { AppMessage, AppNotification, MessageContact } from "../lib/accountStore";
 
 type CommunicationPanelProps = {
@@ -136,20 +137,4 @@ export function CommunicationPanel({ notifications, messages, contacts, onSend, 
       )}
     </div>
   );
-}
-
-function ChatComposer({ disabled, onSend }: { disabled: boolean; onSend: (message: string) => Promise<void> }) {
-  const [value, setValue] = useState("");
-  const [error, setError] = useState("");
-  const submit = async () => {
-    if (disabled || !value.trim()) return;
-    setError("");
-    try {
-      await onSend(value);
-      setValue("");
-    } catch (sendError) {
-      setError(sendError instanceof Error ? sendError.message : "The message could not be sent.");
-    }
-  };
-  return <div className="chat-composer">{error ? <p className="chat-send-error">{error}</p> : null}<textarea onChange={(event) => setValue(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="Write a message..." value={value} /><button aria-label="Send message" className="primary-button" disabled={disabled || !value.trim()} onClick={() => void submit()} type="button"><Send size={15} /></button></div>;
 }

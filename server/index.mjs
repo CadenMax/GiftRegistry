@@ -4,6 +4,8 @@ import { mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
+import { handleAuthApi } from './authRoutes.mjs';
+import { handleSharedApi } from './sharedRoutes.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dataDirectory = join(root, 'data');
@@ -206,6 +208,18 @@ function json(response, status, body) {
   response.end(JSON.stringify(body));
 }
 
+function requestQuery(request) {
+  return new URL(request.url, `http://${request.headers.host}`).searchParams;
+}
+
+function guestQuery(request) {
+  const query = requestQuery(request);
+  return {
+    profileId: String(query.get('profileId') ?? ''),
+    claimToken: String(query.get('claimToken') ?? ''),
+  };
+}
+
 function accountFromRow(row) {
   const avatarUrl = row.avatarUrl ?? row.avatar_url;
   return { id: row.id, name: row.name, email: row.email, ...(avatarUrl ? { avatarUrl } : {}) };
@@ -340,135 +354,36 @@ async function handleApi(request, response, path) {
   if (request.method === 'GET' && path === '/api/session') {
     return json(response, 200, { account: authenticatedAccount(request) });
   }
-  if (request.method === 'POST' && (path === '/api/auth/register' || path === '/api/auth/login')) {
-    const body = await readBody(request);
-    const email = String(body.email ?? '').trim().toLowerCase();
-    const password = String(body.password ?? '');
-    if (!email || !password || (path.endsWith('register') && !String(body.name ?? '').trim())) {
-      return json(response, 400, { error: 'Name, email, and password are required.' });
-    }
-    const existing = statements.accountByEmail.get(email);
-    if (path.endsWith('register')) {
-      if (existing) return json(response, 409, { error: 'An account with that email already exists.' });
-      const account = { id: randomUUID(), name: String(body.name).trim(), email };
-      statements.createAccount.run(account.id, account.name, account.email, null, passwordHash(password), new Date().toISOString());
-      setSession(response, account.id);
-      return json(response, 201, { account });
-    }
-    if (!existing || !passwordsMatch(password, existing.password_hash)) {
-      return json(response, 401, { error: 'The email or password is incorrect.' });
-    }
-    const account = accountFromRow(existing);
-    setSession(response, account.id);
-    return json(response, 200, { account });
-  }
-  if (request.method === 'POST' && path === '/api/auth/logout') {
-    const token = sessionToken(request);
-    if (token) statements.deleteSession.run(tokenHash(token));
-    response.setHeader('Set-Cookie', 'kindlist_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax');
-    return json(response, 200, { ok: true });
-  }
+  if (await handleAuthApi({ request, response, path, readBody, statements, json, accountFromRow, passwordHash, passwordsMatch, sessionToken, tokenHash, setSession, randomUUID })) return;
 
-  const sharedMatch = path.match(/^\/api\/shared\/([^/]+)(?:\/claims)?$/);
-  if (sharedMatch) {
-    const accessCode = decodeURIComponent(sharedMatch[1]).trim().toUpperCase();
-    const shared = findSharedRegistry(accessCode);
-    if (!shared) return json(response, 404, { error: 'That shared list could not be found.' });
-    const signedInAccount = authenticatedAccount(request);
-    if (signedInAccount?.id === shared.row.account_id) {
-      return json(response, 403, { error: 'List owners cannot open their own shared list.' });
-    }
-    if (request.method === 'GET' && path === `/api/shared/${sharedMatch[1]}`) {
-      if (signedInAccount) {
-        statements.trackAccess.run(signedInAccount.id, shared.row.id, accessCode, new Date().toISOString());
-      }
-      return json(response, 200, { registry: publicRegistry(shared.registry) });
-    }
-    if (request.method === 'PATCH' && path.endsWith('/claims')) {
-      const body = await readBody(request);
-      const giftExists = shared.registry.gifts.some((gift) => gift.id === body.giftId);
-      if (!giftExists || !body.profile || (body.state !== null && !['considering', 'claimed'].includes(body.state))) {
-        return json(response, 400, { error: 'That claim is not valid.' });
-      }
-      if (body.profile.mode === 'account' && (!signedInAccount || signedInAccount.id !== body.profile.id)) {
-        return json(response, 403, { error: 'Sign in to use your account identity.' });
-      }
-      if (signedInAccount) {
-        statements.trackAccess.run(signedInAccount.id, shared.row.id, accessCode, new Date().toISOString());
-      }
-      const profile = signedInAccount
-        ? { ...body.profile, id: signedInAccount.id, mode: 'account', displayName: signedInAccount.name, avatarUrl: signedInAccount.avatarUrl }
-        : { ...body.profile, mode: 'guest' };
-      if (profile.mode === 'guest') {
-        statements.touchGuestProfile.run(new Date().toISOString(), shared.row.id, profile.id, profile.claimToken ?? '');
-      }
-      const previousClaims = shared.registry.claims ?? [];
-      const nextRegistry = updateClaim(shared.registry, body.giftId, profile, body.state);
-      statements.updateRegistry.run(JSON.stringify(nextRegistry), new Date().toISOString(), shared.row.id, shared.row.account_id);
-      const claimChanged = JSON.stringify(previousClaims) !== JSON.stringify(nextRegistry.claims ?? []);
-      if (claimChanged) {
-        const gift = nextRegistry.gifts.find((item) => item.id === body.giftId);
-        const actorName = profile.displayName || 'Someone';
-        const verb = body.state === 'claimed'
-          ? 'is buying'
-          : body.state === 'considering'
-            ? 'is also considering'
-            : previousClaims.some((claim) => claim.giverId === profile.id && claim.state === 'claimed')
-              ? 'is no longer buying'
-              : 'is no longer considering';
-        const recipients = new Map();
-        for (const claim of previousClaims) {
-          if (claim.giftId !== body.giftId || claim.giverId === profile.id || claim.giverId === shared.row.account_id) continue;
-          if (claim.giverMode === 'account') {
-            recipients.set(`account:${claim.giverId}`, { mode: 'account', id: claim.giverId });
-          } else if (claim.giverToken) {
-            recipients.set(`guest:${claim.giverId}`, { mode: 'guest', id: claim.giverId, token: claim.giverToken });
-          }
-        }
-        for (const recipient of recipients.values()) {
-          const title = `${actorName} updated a gift`;
-          const message = `${actorName} ${verb} “${gift?.title ?? 'a gift'}”.`;
-          if (recipient.mode === 'account') {
-            statements.createNotification.run(randomUUID(), recipient.id, shared.row.id, body.giftId, 'claim', title, message, new Date().toISOString());
-          } else {
-            statements.createGuestNotification.run(randomUUID(), recipient.id, recipient.token, shared.row.id, body.giftId, 'claim', title, message, new Date().toISOString());
-          }
-        }
-      }
-      return json(response, 200, { registry: publicRegistry(nextRegistry) });
-    }
-  }
+  if (await handleSharedApi({ request, response, path, readBody, json, statements, findSharedRegistry, authenticatedAccount, publicRegistry, updateClaim, randomUUID })) return;
 
   if (request.method === 'GET' && path === '/api/guest-messages') {
-    const query = new URL(request.url, `http://${request.headers.host}`).searchParams;
-    const profileId = String(query.get('profileId') ?? '');
-    const claimToken = String(query.get('claimToken') ?? '');
+    const { profileId, claimToken } = guestQuery(request);
     const responseMessages = statements.guestMessages.all(profileId, profileId, claimToken, profileId, claimToken);
     return json(response, 200, { messages: responseMessages });
   }
   if (request.method === 'GET' && path === '/api/guest-notifications') {
-    const query = new URL(request.url, `http://${request.headers.host}`).searchParams;
-    const profileId = String(query.get('profileId') ?? '');
-    const claimToken = String(query.get('claimToken') ?? '');
+    const { profileId, claimToken } = guestQuery(request);
     return json(response, 200, { notifications: statements.guestNotifications.all(profileId, claimToken) });
   }
   if (request.method === 'DELETE' && path === '/api/guest-notifications') {
-    const query = new URL(request.url, `http://${request.headers.host}`).searchParams;
-    database.prepare('DELETE FROM guest_notifications WHERE profile_id = ? AND profile_token = ?').run(query.get('profileId') ?? '', query.get('claimToken') ?? '');
+    const { profileId, claimToken } = guestQuery(request);
+    database.prepare('DELETE FROM guest_notifications WHERE profile_id = ? AND profile_token = ?').run(profileId, claimToken);
     return json(response, 200, { ok: true });
   }
   if (request.method === 'POST' && path === '/api/guest-notifications/read-message') {
-    const query = new URL(request.url, `http://${request.headers.host}`).searchParams;
-    database.prepare("UPDATE guest_notifications SET read_at = ? WHERE profile_id = ? AND profile_token = ? AND type = 'message' AND read_at IS NULL").run(new Date().toISOString(), query.get('profileId') ?? '', query.get('claimToken') ?? '');
+    const { profileId, claimToken } = guestQuery(request);
+    database.prepare("UPDATE guest_notifications SET read_at = ? WHERE profile_id = ? AND profile_token = ? AND type = 'message' AND read_at IS NULL").run(new Date().toISOString(), profileId, claimToken);
     return json(response, 200, { ok: true });
   }
   if (request.method === 'POST' && path === '/api/guest-notifications/read-activity') {
-    const query = new URL(request.url, `http://${request.headers.host}`).searchParams;
-    database.prepare("UPDATE guest_notifications SET read_at = ? WHERE profile_id = ? AND profile_token = ? AND type <> 'message' AND read_at IS NULL").run(new Date().toISOString(), query.get('profileId') ?? '', query.get('claimToken') ?? '');
+    const { profileId, claimToken } = guestQuery(request);
+    database.prepare("UPDATE guest_notifications SET read_at = ? WHERE profile_id = ? AND profile_token = ? AND type <> 'message' AND read_at IS NULL").run(new Date().toISOString(), profileId, claimToken);
     return json(response, 200, { ok: true });
   }
   if (request.method === 'GET' && path === '/api/guest-message-contacts') {
-    const query = new URL(request.url, `http://${request.headers.host}`).searchParams;
+    const query = requestQuery(request);
     const accessCode = String(query.get('accessCode') ?? '').toUpperCase();
     const profileId = String(query.get('profileId') ?? '');
     const claimToken = String(query.get('claimToken') ?? '');
@@ -519,8 +434,8 @@ async function handleApi(request, response, path) {
     return json(response, 201, { ok: true });
   }
   if (request.method === 'DELETE' && path.startsWith('/api/guest-notifications/')) {
-    const query = new URL(request.url, `http://${request.headers.host}`).searchParams;
-    database.prepare('DELETE FROM guest_notifications WHERE id = ? AND profile_id = ? AND profile_token = ?').run(decodeURIComponent(path.slice('/api/guest-notifications/'.length)), query.get('profileId') ?? '', query.get('claimToken') ?? '');
+    const { profileId, claimToken } = guestQuery(request);
+    database.prepare('DELETE FROM guest_notifications WHERE id = ? AND profile_id = ? AND profile_token = ?').run(decodeURIComponent(path.slice('/api/guest-notifications/'.length)), profileId, claimToken);
     return json(response, 200, { ok: true });
   }
   if (request.method === 'POST' && path === '/api/conversations') {

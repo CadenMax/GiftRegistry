@@ -38,6 +38,19 @@ export type Gift = {
   addedAt: string;
 };
 
+export type GiftDraft = Omit<Gift, 'id' | 'addedAt'>;
+
+export const blankGift: GiftDraft = {
+  title: '',
+  description: '',
+  imageUrl: '',
+  linkUrl: '',
+  price: undefined,
+  categoryId: '',
+  status: '',
+  dependsOn: [],
+};
+
 export type ClaimRecord = {
   giftId: string;
   giverId: string;
