@@ -13,6 +13,7 @@ mkdirSync(dataDirectory, { recursive: true });
 const database = new DatabaseSync(join(dataDirectory, 'kindlist.sqlite'));
 const port = Number(process.env.PORT ?? 3001);
 const isProduction = process.env.NODE_ENV === 'production';
+const maxBodyBytes = 8 * 1024 * 1024;
 
 database.exec(`
   PRAGMA foreign_keys = ON;
@@ -228,8 +229,24 @@ function accountFromRow(row) {
 function readBody(request) {
   return new Promise((resolveBody, reject) => {
     let body = '';
-    request.on('data', (chunk) => { body += chunk; });
+    let bodyBytes = 0;
+    let tooLarge = false;
+    request.on('data', (chunk) => {
+      if (tooLarge) return;
+      bodyBytes += chunk.length;
+      if (bodyBytes > maxBodyBytes) {
+        tooLarge = true;
+        return;
+      }
+      body += chunk;
+    });
     request.on('end', () => {
+      if (tooLarge) {
+        const error = new Error('Request body is too large.');
+        error.statusCode = 413;
+        reject(error);
+        return;
+      }
       try { resolveBody(body ? JSON.parse(body) : {}); } catch { reject(new Error('Invalid JSON body.')); }
     });
     request.on('error', reject);
@@ -730,6 +747,8 @@ async function handleApi(request, response, path) {
           database.prepare('DELETE FROM guest_profiles WHERE registry_id = ? AND profile_id = ?').run(row.id, personId);
           database.prepare('DELETE FROM guest_notifications WHERE registry_id = ? AND profile_id = ?').run(row.id, personId);
           database.prepare('DELETE FROM guest_messages WHERE registry_id = ? AND (sender_id = ? OR recipient_id = ?)').run(row.id, personId, personId);
+        } else {
+          database.prepare('DELETE FROM list_access WHERE registry_id = ? AND account_id = ?').run(row.id, personId);
         }
       }
       database.exec('COMMIT');
@@ -742,13 +761,23 @@ async function handleApi(request, response, path) {
   json(response, 404, { error: 'Not found.' });
 }
 
+function setSecurityHeaders(response) {
+  response.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+  response.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.setHeader('X-Content-Type-Options', 'nosniff');
+  response.setHeader('X-Frame-Options', 'DENY');
+  response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (isProduction) response.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+}
+
 const server = createServer(async (request, response) => {
+  setSecurityHeaders(response);
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
   if (url.pathname.startsWith('/api/')) {
     try { await handleApi(request, response, url.pathname); }
     catch (error) {
       console.error(error);
-      if (!response.headersSent) json(response, 500, { error: 'The server could not complete that request.' });
+      if (!response.headersSent) json(response, error.statusCode ?? 500, { error: error.statusCode === 413 ? error.message : 'The server could not complete that request.' });
     }
     return;
   }

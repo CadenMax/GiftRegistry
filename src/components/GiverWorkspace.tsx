@@ -1,4 +1,4 @@
-import { ArrowRight, Bookmark, ChevronDown, Copy, Gift as GiftIcon, Trash2 } from "lucide-react";
+import { ArrowRight, Bookmark, Copy, Gift as GiftIcon, Trash2 } from "lucide-react";
 import type { CSSProperties, FormEvent } from "react";
 import { GiftFilterControls } from "./GiftFilterControls";
 import { DescriptionDialog } from "./DescriptionDialog";
@@ -132,7 +132,7 @@ export function GiverWorkspace({ registry, view, profile, accessCode, accessErro
                                         {gift.imageUrl ? <img alt={gift.title} className="gift-image" src={gift.imageUrl} /> : <div className="gift-image gift-image-placeholder"><GiftIcon size={24} /><span>No image</span></div>}
                                         <div className="gift-copy">
                                             <div className="gift-title-row"><div><h3>{gift.title}</h3>{gift.description ? <DescriptionDialog description={gift.description} maxLines={2} title={gift.title} /> : null}</div></div>
-                                            {gift.dependenciesLabel ? <div className="gift-dependency dependency-alert"><ChevronDown size={14} /> Also consider: {gift.dependenciesLabel}</div> : null}
+                                            {gift.dependenciesLabel ? <div className="gift-dependency dependency-alert">Depends on: {gift.dependenciesLabel}</div> : null}
                                             <ClaimPeople people={gift.claimPeople} onMessage={onMessage} />
                                             <div className="gift-actions"><button disabled={gift.claimState === "claimed"} onClick={() => updateClaim(gift.id, ownsClaim(gift, viewerName, "considering") ? null : "considering")} type="button">{ownsClaim(gift, viewerName, "considering") ? "Undo considering this" : "I am considering this"}</button><button disabled={gift.claimState === "claimed" && !ownsClaim(gift, viewerName, "claimed")} onClick={() => updateClaim(gift.id, ownsClaim(gift, viewerName, "claimed") ? null : "claimed")} type="button">{ownsClaim(gift, viewerName, "claimed") ? "Undo buying this" : "I am buying this"}</button></div><div className="gift-footer"><span className="gift-category" style={{ "--tag-color": gift.categoryColor } as CSSProperties}>{gift.categoryName}</span><strong>{gift.priceLabel}</strong></div>
                                         </div>

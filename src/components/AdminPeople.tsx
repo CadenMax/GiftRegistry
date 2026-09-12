@@ -1,4 +1,4 @@
-import { AlertTriangle, LoaderCircle, RefreshCw, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import { AlertTriangle, LoaderCircle, RefreshCw, Trash2, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getAdminPeople, removeAdminPerson, type AdminPerson } from "../lib/accountStore";
 
@@ -94,7 +94,6 @@ export function AdminPeople({ onChanged }: AdminPeopleProps) {
         </div>
         <button aria-label="Refresh people" className="icon-button" onClick={() => void loadPeople()} title="Refresh people" type="button"><RefreshCw size={16} /></button>
       </div>
-      <p className="admin-people-note"><ShieldCheck size={15} /> This view never shows gifts, claims, or who is buying what.</p>
       {error ? <p className="error-message">{error}</p> : null}
       {loading ? <p className="admin-people-empty"><LoaderCircle className="spin" size={17} /> Loading participants...</p> : null}
       {!loading && people.length === 0 ? <p className="admin-people-empty">No participants have appeared on your lists yet.</p> : null}

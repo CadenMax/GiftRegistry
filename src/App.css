@@ -1685,7 +1685,7 @@ a:focus-visible {
 
 .giver-workspace .gift-actions {
     gap: 5px;
-    margin-top: 11px;
+    margin-top: auto;
 }
 
 .gift-actions button {
@@ -1700,6 +1700,10 @@ a:focus-visible {
     font-size: .7rem;
     line-height: 1.2;
     padding: 8px 6px;
+}
+
+.giver-workspace .gift-footer {
+    margin-top: 11px;
 }
 
 .gift-actions .secondary-button {
