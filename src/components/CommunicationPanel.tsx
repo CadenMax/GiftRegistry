@@ -22,7 +22,10 @@ type CommunicationPanelProps = {
 
 export function CommunicationPanel({ notifications, messages, contacts, onSend, onMarkNotificationsRead, onClose, focusContactId, panelMode, onDeleteNotification, onDeleteAllNotifications, onLeaveConversation, onMarkMessageNotificationsRead, currentUserId, currentUserName, currentUserAvatar }: CommunicationPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
   const [mode, setMode] = useState<"notifications" | "messages">(() => panelMode ?? (focusContactId ? "messages" : "notifications"));
+  const [panelPosition, setPanelPosition] = useState<{ left: number; top: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>(() => focusContactId ? [focusContactId] : []);
   const [sending, setSending] = useState(false);
   const [activeChatKey, setActiveChatKey] = useState("");
@@ -62,6 +65,29 @@ export function CommunicationPanel({ notifications, messages, contacts, onSend, 
     return people.slice(0, 3);
   };
 
+  const startDragging = (event: React.PointerEvent<HTMLDivElement>) => {
+    if ((event.target instanceof Element && event.target.closest("button")) || !panelRef.current) return;
+    const panelBounds = panelRef.current.getBoundingClientRect();
+    dragOffsetRef.current = { x: event.clientX - panelBounds.left, y: event.clientY - panelBounds.top };
+    setPanelPosition({ left: panelBounds.left, top: panelBounds.top });
+    setDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const movePanel = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging || !panelRef.current) return;
+    const panelBounds = panelRef.current.getBoundingClientRect();
+    const left = Math.min(Math.max(8, event.clientX - dragOffsetRef.current.x), window.innerWidth - panelBounds.width - 8);
+    const top = Math.min(Math.max(8, event.clientY - dragOffsetRef.current.y), window.innerHeight - panelBounds.height - 8);
+    setPanelPosition({ left, top });
+  };
+
+  const stopDragging = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging) return;
+    setDragging(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+
   useEffect(() => {
     if (mode === "notifications" && unreadActivityCount > 0) onMarkNotificationsRead();
     if (mode === "messages" && hasUnreadMessages) onMarkMessageNotificationsRead?.();
@@ -96,8 +122,8 @@ export function CommunicationPanel({ notifications, messages, contacts, onSend, 
   };
 
   return (
-    <div className="communication-panel" ref={panelRef} role="dialog" aria-label="Notifications and messages">
-      <div className="communication-header"><div><strong>{mode === "messages" ? "Messenger" : "Stay in the loop"}</strong><small>{mode === "messages" ? "Your saved chats" : unreadActivityCount ? `${unreadActivityCount} new notification${unreadActivityCount === 1 ? "" : "s"}` : "Your list activity"}</small></div><button aria-label="Close" className="icon-button" onClick={onClose} type="button"><X size={17} /></button></div>
+    <div className="communication-panel" ref={panelRef} role="dialog" aria-label="Notifications and messages" style={panelPosition ? { left: panelPosition.left, top: panelPosition.top, right: "auto" } : undefined}>
+      <div className={`communication-header${dragging ? " dragging" : ""}`} onPointerDown={startDragging} onPointerMove={movePanel} onPointerUp={stopDragging} title="Drag to move"><div><strong>{mode === "messages" ? "Messages" : "Stay in the loop"}</strong><small>{mode === "messages" ? "Your saved chats" : unreadActivityCount ? `${unreadActivityCount} new notification${unreadActivityCount === 1 ? "" : "s"}` : "Your list activity"}</small></div><button aria-label="Close" className="icon-button" onClick={onClose} type="button"><X size={17} /></button></div>
       {panelMode ? null : <div className="communication-tabs"><button className={mode === "notifications" ? "active" : ""} onClick={() => setMode("notifications")} type="button"><Bell size={15} /> Notifications</button><button className={mode === "messages" ? "active" : ""} onClick={() => setMode("messages")} type="button"><MessageCircle size={15} /> Messages</button></div>}
       {mode === "notifications" ? (
         <div className="communication-feed"><div className="notification-actions">{notifications.length ? <button className="text-button" onClick={onDeleteAllNotifications} type="button">Delete all</button> : null}</div>{notifications.length ? notifications.map((notification) => <article className={notification.read_at ? "communication-item" : "communication-item unread"} key={notification.id}><div className="communication-item-heading"><strong>{notification.title}</strong><button aria-label="Delete notification" className="icon-button" onClick={() => onDeleteNotification?.(notification.id)} type="button"><X size={13} /></button></div><p>{notification.body}</p><small>{new Date(notification.created_at).toLocaleString()}</small></article>) : <p className="communication-empty">No notifications yet.</p>}</div>

@@ -50,7 +50,7 @@ export function ListSetup({
             <input onChange={(event) => onOccasionChange(event.target.value)} placeholder="e.g. Birthday, wedding, home" value={occasion} />
           </label>
           <div className="setup-actions">
-            {mode === "edit" && onCancel ? <button className="text-button" onClick={onCancel} type="button">Cancel</button> : null}
+            {onCancel ? <button className="text-button" onClick={onCancel} type="button">Cancel</button> : null}
             <button className="primary-button" type="submit">
               {mode === "edit" ? "Save details" : mode === "duplicate" ? "Duplicate list" : "Create list"} <ArrowRight size={17} />
             </button>

@@ -16,16 +16,30 @@ function sortGifts(gifts: Gift[], sort: GiftFilters['sort'], categoryNames: Reco
     switch (sort) {
       case 'price-asc':
       case 'price-desc':
-        return direction * ((left.price ?? Number.POSITIVE_INFINITY) - (right.price ?? Number.POSITIVE_INFINITY));
+        return direction * ((left.price ?? 0) - (right.price ?? 0));
       case 'name-asc':
       case 'name-desc':
         return direction * left.title.localeCompare(right.title);
       case 'category-asc':
       case 'category-desc':
-        return direction * (categoryNames[left.categoryId ?? ''] ?? 'Other').localeCompare(categoryNames[right.categoryId ?? ''] ?? 'Other');
+        {
+          const leftCategory = categoryNames[left.categoryId ?? ''];
+          const rightCategory = categoryNames[right.categoryId ?? ''];
+          if (!leftCategory && rightCategory) return 1;
+          if (leftCategory && !rightCategory) return -1;
+          if (!leftCategory && !rightCategory) return 0;
+          return direction * leftCategory.localeCompare(rightCategory);
+        }
       case 'status-asc':
       case 'status-desc':
-        return direction * (statusNames[left.status ?? ''] ?? 'No status').localeCompare(statusNames[right.status ?? ''] ?? 'No status');
+        {
+          const leftStatus = statusNames[left.status ?? ''];
+          const rightStatus = statusNames[right.status ?? ''];
+          if (!leftStatus && rightStatus) return 1;
+          if (leftStatus && !rightStatus) return -1;
+          if (!leftStatus && !rightStatus) return 0;
+          return direction * leftStatus.localeCompare(rightStatus);
+        }
       default:
         return left.title.localeCompare(right.title);
     }
@@ -37,19 +51,16 @@ function filterGifts(gifts: Gift[], filters: GiftFilters) {
     .filter((gift) => filters.categoryIds.length === 0 || filters.categoryIds.includes(gift.categoryId ?? ''))
     .filter((gift) => filters.statusIds.length === 0 || filters.statusIds.includes(gift.status ?? ''))
     .filter((gift) => filters.minPrice === undefined || (gift.price ?? 0) >= filters.minPrice)
-    .filter((gift) => filters.maxPrice === undefined || (gift.price ?? Number.POSITIVE_INFINITY) <= filters.maxPrice)
+    .filter((gift) => filters.maxPrice === undefined || (gift.price ?? 0) <= filters.maxPrice)
     .filter((gift) => {
-      const hasDependency = gift.dependsOn.length > 0 || Boolean(gift.dependencyText);
+      const hasDependency = gift.dependsOn.length > 0;
       return filters.dependency === 'all' || (filters.dependency === 'yes' ? hasDependency : !hasDependency);
     })
     .filter((gift) => !filters.dependentOnGiftId || gift.dependsOn.includes(filters.dependentOnGiftId));
 }
 
-function getDependenciesLabel(giftTitles: Record<string, string>, dependencyIds: string[], dependencyText?: string) {
-  const dependencies = [
-    ...dependencyIds.map((dependencyId) => giftTitles[dependencyId] ?? 'Another gift'),
-    ...(dependencyText ? [dependencyText] : []),
-  ];
+function getDependenciesLabel(giftTitles: Record<string, string>, dependencyIds: string[]) {
+  const dependencies = dependencyIds.map((dependencyId) => giftTitles[dependencyId] ?? 'Another gift');
 
   if (dependencies.length === 0) {
     return '';
@@ -124,12 +135,12 @@ export function createRecipientView(
       description: gift.description,
       imageUrl: gift.imageUrl,
       linkUrl: gift.linkUrl,
-      priceLabel: gift.price === undefined ? 'Price not set' : `$${gift.price.toFixed(2)}`,
+      priceLabel: `$${(gift.price ?? 0).toFixed(2)}`,
       categoryName: registry.categories.find((category) => category.id === gift.categoryId)?.name ?? 'Uncategorised',
       categoryColor: registry.categories.find((category) => category.id === gift.categoryId)?.color,
       status: gift.status ? statusNames[gift.status] ?? gift.status : undefined,
       statusColor: registry.statuses.find((status) => status.id === gift.status)?.color,
-      dependenciesLabel: getDependenciesLabel(giftTitles, gift.dependsOn, gift.dependencyText),
+      dependenciesLabel: getDependenciesLabel(giftTitles, gift.dependsOn),
     })),
   };
 }
@@ -180,12 +191,12 @@ export function createGiftGiverView(
         title: gift.title,
         description: gift.description,
         imageUrl: gift.imageUrl,
-        priceLabel: gift.price === undefined ? 'Price not set' : `$${gift.price.toFixed(2)}`,
+        priceLabel: `$${(gift.price ?? 0).toFixed(2)}`,
         categoryName: registry.categories.find((category) => category.id === gift.categoryId)?.name ?? 'Uncategorised',
         categoryColor: registry.categories.find((category) => category.id === gift.categoryId)?.color,
         status: gift.status ? statusNames[gift.status] ?? gift.status : undefined,
         statusColor: registry.statuses.find((status) => status.id === gift.status)?.color,
-        dependenciesLabel: getDependenciesLabel(giftTitles, gift.dependsOn, gift.dependencyText),
+        dependenciesLabel: getDependenciesLabel(giftTitles, gift.dependsOn),
         claimState: claimSummary.state,
         claimLabel: claimSummary.label,
         claimDetail: claimSummary.detail,

@@ -1339,6 +1339,101 @@ a:focus-visible {
     grid-column: span 2;
 }
 
+.dependency-selector {
+    display: grid;
+    gap: 8px;
+}
+
+.field-label {
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.dependency-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.dependency-option {
+    align-items: center;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--muted);
+    display: inline-flex;
+    font: inherit;
+    gap: 6px;
+    min-height: 36px;
+    padding: 7px 11px;
+    text-align: left;
+}
+
+.dependency-option:hover,
+.dependency-option.selected {
+    background: #f6dfd5;
+    border-color: var(--coral);
+    color: var(--coral-dark);
+}
+
+.dependency-empty {
+    color: var(--muted);
+    font-size: .82rem;
+}
+
+.image-source-field {
+    display: grid;
+    gap: 8px;
+}
+
+.image-source-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.image-source-option {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    color: var(--muted);
+    font: inherit;
+    min-height: 36px;
+    padding: 7px 12px;
+}
+
+.image-source-option:hover,
+.image-source-option.selected {
+    background: #f6dfd5;
+    border-color: var(--coral);
+    color: var(--coral-dark);
+}
+
+.image-file-input {
+    box-sizing: border-box;
+    height: 38px;
+    min-height: 38px;
+    padding: 4px 8px;
+}
+
+.image-file-input::file-selector-button {
+    background: var(--coral);
+    border: 0;
+    border-radius: 7px;
+    box-sizing: border-box;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    height: 28px;
+    line-height: 18px;
+    margin-right: 10px;
+    padding: 4px 12px;
+}
+
+.image-file-input::file-selector-button:hover {
+    background: var(--coral-dark);
+}
+
 .inline-category,
 .inline-status {
     align-items: end;
@@ -2208,6 +2303,13 @@ footer span:first-child {
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
+    cursor: move;
+    touch-action: none;
+    user-select: none;
+}
+
+.communication-header.dragging {
+    cursor: grabbing;
 }
 
 .communication-header small,

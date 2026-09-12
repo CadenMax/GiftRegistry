@@ -35,7 +35,6 @@ export type Gift = {
   categoryId?: string;
   status?: string;
   dependsOn: string[];
-  dependencyText?: string;
   addedAt: string;
 };
 

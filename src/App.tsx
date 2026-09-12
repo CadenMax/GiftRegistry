@@ -77,7 +77,6 @@ const blankGift: GiftDraft = {
   categoryId: "",
   status: "",
   dependsOn: [],
-  dependencyText: "",
 };
 
 const guestProfileStorageKey = "giftregistry_guest_profile";
@@ -105,6 +104,18 @@ function normaliseLink(link: string) {
   return trimmedLink && !/^https?:\/\//i.test(trimmedLink)
     ? `https://${trimmedLink}`
     : trimmedLink;
+}
+
+function clearSharedListUrl() {
+  window.history.replaceState({}, document.title, window.location.pathname);
+}
+
+function setSharedListUrl(code: string) {
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.searchParams.set("list", code);
+  url.hash = "";
+  window.history.replaceState({}, document.title, `${url.pathname}?${url.searchParams.toString()}`);
 }
 
 function App() {
@@ -306,6 +317,7 @@ function App() {
       setGiftGiverProfile(guestProfile);
     }
     if (sharedRegistry?.accessCode === code) {
+      setSharedListUrl(code);
       setIsUnlocked(true);
       setAccessError("");
       return;
@@ -318,6 +330,7 @@ function App() {
       }
       setSharedRegistry(nextSharedRegistry);
       setActiveSharedCode(code);
+      setSharedListUrl(code);
       setIsUnlocked(true);
       setAccessError("");
     } catch (error) {
@@ -341,6 +354,7 @@ function App() {
   const addGift = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!newGift.title.trim()) return;
+    const { dependencyText: _legacyDependencyText, ...giftDraft } = newGift as GiftDraft & { dependencyText?: string };
     setRegistry((current) => ({
       ...current,
       gifts: editingGiftId
@@ -348,19 +362,19 @@ function App() {
             gift.id === editingGiftId
               ? {
                   ...gift,
-                  ...newGift,
-                  title: newGift.title.trim(),
-                  linkUrl: normaliseLink(newGift.linkUrl ?? ""),
+                  ...giftDraft,
+                  title: giftDraft.title.trim(),
+                  linkUrl: normaliseLink(giftDraft.linkUrl ?? ""),
                 }
               : gift,
           )
         : [
             ...current.gifts,
             {
-              ...newGift,
+              ...giftDraft,
               id: `gift-${Date.now()}`,
-              title: newGift.title.trim(),
-              linkUrl: normaliseLink(newGift.linkUrl ?? ""),
+              title: giftDraft.title.trim(),
+              linkUrl: normaliseLink(giftDraft.linkUrl ?? ""),
               addedAt: new Date().toISOString(),
             },
           ],
@@ -487,6 +501,7 @@ function App() {
   const handleAuthSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAuthError("");
+    clearSharedListUrl();
     try {
       const authenticatedAccount =
         authMode === "create"
@@ -528,8 +543,13 @@ function App() {
 
   const signOut = () => {
     clearSession();
+    clearSharedListUrl();
     setAccount(null);
     setGiftGiverProfile(getStoredGuestProfile());
+    setSharedRegistry(null);
+    setActiveSharedCode("");
+    setIsUnlocked(false);
+    setAccessCode("");
     setWorkspace("recipient");
     setRegistries([]);
     setSavedRegistries([]);
@@ -540,6 +560,7 @@ function App() {
   };
 
   const selectRegistry = (registryId: string) => {
+    clearSharedListUrl();
     setActiveRegistryId(registryId);
     setWorkspace("recipient");
     setIsUnlocked(false);
@@ -547,6 +568,7 @@ function App() {
   };
 
   const openSavedRegistry = (savedRegistry: Registry) => {
+    clearSharedListUrl();
     setSharedRegistry(savedRegistry);
     setActiveSharedCode(savedRegistry.accessCode);
     setAccessCode(savedRegistry.accessCode);
@@ -567,11 +589,21 @@ function App() {
       setShowOwnListsPrompt(true);
       return;
     }
+    clearSharedListUrl();
+    setSharedRegistry(null);
+    setActiveSharedCode("");
+    setIsUnlocked(false);
+    setAccessCode("");
     setWorkspace("recipient");
   };
 
   const signInForOwnLists = () => {
+    clearSharedListUrl();
     setShowOwnListsPrompt(false);
+    setSharedRegistry(null);
+    setActiveSharedCode("");
+    setIsUnlocked(false);
+    setAccessCode("");
     setAuthMode("sign-in");
     setWorkspace("recipient");
   };
@@ -763,28 +795,28 @@ function App() {
   return (
     <main className="app-shell">
       <header className="topbar" id="top">
-        <a className="brand" href="#top">
+        <a className="brand" href={window.location.pathname} onClick={(event) => { event.preventDefault(); clearSharedListUrl(); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
           <span className="brand-mark"><GiftIcon size={18} /></span>
           HaulBoard
         </a>
         <div className="topbar-actions">
           {account ? (
             <>
-              <button aria-label="Open profile" className="icon-button" onClick={() => setShowProfile(true)} title="Profile" type="button">
-                {account.avatarUrl ? <img alt="" src={account.avatarUrl} /> : <UserRound size={18} />}
-              </button>
               <button aria-label="Open notifications" className="text-button communication-trigger" onClick={() => { setCommunicationMode("notifications"); setFocusContactId(undefined); setShowCommunication(true); }} title="Notifications" type="button">
                 <Bell size={16} /> Notifications{unreadActivityCount ? <span className="notification-count">{unreadActivityCount}</span> : null}
               </button>
-              <button aria-label="Open Messenger" className="text-button communication-trigger" onClick={() => { setCommunicationMode("messages"); setFocusContactId(undefined); setShowCommunication(true); }} title="Messenger" type="button"><MessageCircle size={16} /> Messenger{unreadMessageCount ? <span className="notification-count message-count">{unreadMessageCount}</span> : null}</button>
+              <button aria-label="Open Messages" className="text-button communication-trigger" onClick={() => { setCommunicationMode("messages"); setFocusContactId(undefined); setShowCommunication(true); }} title="Messages" type="button"><MessageCircle size={16} /> Messages{unreadMessageCount ? <span className="notification-count message-count">{unreadMessageCount}</span> : null}</button>
+              <button aria-label="Open profile" className="icon-button" onClick={() => setShowProfile(true)} title="Profile" type="button">
+                {account.avatarUrl ? <img alt="" src={account.avatarUrl} /> : <UserRound size={18} />}
+              </button>
               <button aria-label="Log out" className="icon-button" onClick={signOut} title="Log out" type="button">
                 <LogOut size={18} />
               </button>
             </>
           ) : (
             <>
-              {isUnlocked ? <><button className="text-button communication-trigger" onClick={() => { setCommunicationMode("notifications"); setFocusContactId(undefined); setShowCommunication(true); }} type="button"><Bell size={16} /> Notifications{unreadActivityCount ? <span className="notification-count">{unreadActivityCount}</span> : null}</button><button className="text-button communication-trigger" onClick={() => { setCommunicationMode("messages"); setFocusContactId(undefined); setShowCommunication(true); }} type="button"><MessageCircle size={16} /> Messenger{unreadMessageCount ? <span className="notification-count message-count">{unreadMessageCount}</span> : null}</button></> : null}
-              <button className="text-button" onClick={() => setWorkspace("recipient")} type="button">Create account <ArrowRight size={15} /></button>
+              {isUnlocked ? <><button className="text-button communication-trigger" onClick={() => { setCommunicationMode("notifications"); setFocusContactId(undefined); setShowCommunication(true); }} type="button"><Bell size={16} /> Notifications{unreadActivityCount ? <span className="notification-count">{unreadActivityCount}</span> : null}</button><button className="text-button communication-trigger" onClick={() => { setCommunicationMode("messages"); setFocusContactId(undefined); setShowCommunication(true); }} type="button"><MessageCircle size={16} /> Messages{unreadMessageCount ? <span className="notification-count message-count">{unreadMessageCount}</span> : null}</button></> : null}
+              <button className="text-button" onClick={() => { clearSharedListUrl(); setSharedRegistry(null); setActiveSharedCode(""); setIsUnlocked(false); setAccessCode(""); setAuthMode("create"); setAuthName(giftGiverProfile.displayName); setWorkspace("recipient"); }} type="button">Create account <ArrowRight size={15} /></button>
             </>
           )}
         </div>
