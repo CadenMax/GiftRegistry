@@ -1197,6 +1197,7 @@ a:focus-visible {
 .gift-footer {
     align-items: center;
     display: flex;
+    gap: 8px;
     justify-content: space-between;
     margin-top: 17px;
     margin-top: auto;
@@ -1220,6 +1221,10 @@ a:focus-visible {
 
 .gift-footer strong {
     color: var(--ink);
+    flex: 0 1 auto;
+    max-width: 55%;
+    overflow-wrap: anywhere;
+    text-align: right;
 }
 
 .gift-dependency {
@@ -1855,6 +1860,18 @@ footer span:first-child {
 
 @media (max-width: 560px) {
 
+    .topbar {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .topbar-actions {
+        flex: 1 1 100%;
+        justify-content: flex-end;
+        min-width: 0;
+    }
+
     .section-heading,
     .giver-welcome,
     .shared-list-identity {
@@ -1924,7 +1941,8 @@ footer span:first-child {
     .filter-controls-row .filter-select-field,
     .filter-controls-row .filter-dropdown,
     .filter-controls-row .price-range-field {
-        flex-basis: calc(50% - 5px);
+        flex: 1 1 100%;
+        min-width: 0;
     }
 
     .filter-controls-row > .add-gift-button {
@@ -1933,6 +1951,14 @@ footer span:first-child {
 
     .settings-columns {
         grid-template-columns: 1fr;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .wide-field {
+        grid-column: auto;
     }
 
     footer {
@@ -2853,4 +2879,32 @@ footer span:first-child {
     left: 0;
     margin: 0;
     position: absolute;
+}
+
+@media (max-width: 850px) {
+    .profile-layout {
+        align-items: stretch;
+        grid-template-columns: 1fr;
+        min-height: auto;
+        padding: 30px 0;
+    }
+
+    .profile-card,
+    .admin-people {
+        max-width: none;
+        width: 100%;
+    }
+
+    .admin-people {
+        padding: 20px;
+    }
+
+    .admin-person {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .admin-duplicate {
+        grid-column: 2 / -1;
+        justify-self: start;
+    }
 }

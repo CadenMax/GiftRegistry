@@ -641,7 +641,7 @@ function App() {
       listName: name,
       occasion: listOccasion.trim(),
       ownerName: account.name,
-      accessCode: crypto.randomUUID().slice(0, 6).toUpperCase(),
+      accessCode: crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase(),
       claims: [],
     };
     setRegistries((current) => [...current, newRegistry]);

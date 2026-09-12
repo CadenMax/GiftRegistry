@@ -27,7 +27,7 @@ database.exec(`
   );
   CREATE TABLE IF NOT EXISTS registries (
     id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    data TEXT NOT NULL, updated_at TEXT NOT NULL
+    data TEXT NOT NULL, access_code TEXT NOT NULL, updated_at TEXT NOT NULL
   );
   CREATE TABLE IF NOT EXISTS sessions (
     token_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -82,6 +82,32 @@ database.exec(`
     );
 `);
 
+function newAccessCode(usedCodes = new Set()) {
+  let accessCode;
+  do {
+    accessCode = randomBytes(6).toString('hex').toUpperCase();
+  } while (usedCodes.has(accessCode));
+  return accessCode;
+}
+
+const registryColumns = database.prepare('PRAGMA table_info(registries)').all();
+if (!registryColumns.some((column) => column.name === 'access_code')) {
+  database.exec('ALTER TABLE registries ADD COLUMN access_code TEXT');
+}
+const registryRows = database.prepare('SELECT id, data, access_code FROM registries').all();
+const usedAccessCodes = new Set();
+const updateRegistryAccessCode = database.prepare('UPDATE registries SET data = ?, access_code = ? WHERE id = ?');
+for (const row of registryRows) {
+  const registry = JSON.parse(row.data);
+  let accessCode = String(registry.accessCode ?? row.access_code ?? '').trim().toUpperCase();
+  if (!accessCode || usedAccessCodes.has(accessCode)) accessCode = newAccessCode(usedAccessCodes);
+  usedAccessCodes.add(accessCode);
+  if (registry.accessCode !== accessCode || row.access_code !== accessCode) {
+    updateRegistryAccessCode.run(JSON.stringify({ ...registry, accessCode }), accessCode, row.id);
+  }
+}
+database.exec('CREATE UNIQUE INDEX IF NOT EXISTS registries_access_code_unique ON registries(access_code)');
+
 for (const table of ['messages', 'guest_messages']) {
   const columns = database.prepare(`PRAGMA table_info(${table})`).all();
   if (!columns.some((column) => column.name === 'conversation_id')) {
@@ -95,7 +121,7 @@ const statements = {
   createAccount: database.prepare('INSERT INTO accounts (id, name, email, avatar_url, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)'),
   updateAccount: database.prepare('UPDATE accounts SET name = ?, email = ?, avatar_url = ?, password_hash = ? WHERE id = ?'),
   registries: database.prepare('SELECT id, data FROM registries WHERE account_id = ? ORDER BY updated_at ASC'),
-  replaceRegistry: database.prepare('INSERT INTO registries (id, account_id, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at'),
+  replaceRegistry: database.prepare('INSERT INTO registries (id, account_id, data, access_code, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data, access_code = excluded.access_code, updated_at = excluded.updated_at'),
   deleteRegistries: database.prepare('DELETE FROM registries WHERE account_id = ?'),
   session: database.prepare('SELECT account_id, expires_at FROM sessions WHERE token_hash = ?'),
   createSession: database.prepare('INSERT INTO sessions (token_hash, account_id, expires_at) VALUES (?, ?, ?)'),
@@ -651,6 +677,12 @@ async function handleApi(request, response, path) {
   if (request.method === 'PUT' && path === '/api/registries') {
     const body = await readBody(request);
     const registries = Array.isArray(body.registries) ? body.registries : [];
+    const incomingAccessCodes = new Set();
+    for (const registry of registries) {
+      const accessCode = String(registry.accessCode ?? '').trim().toUpperCase();
+      if (!accessCode || incomingAccessCodes.has(accessCode)) return json(response, 409, { error: 'Each list must have a unique share code.' });
+      incomingAccessCodes.add(accessCode);
+    }
     const existingRegistries = new Map(
       statements.registries.all(account.id).map((row) => {
         const registry = JSON.parse(row.data);
@@ -670,10 +702,11 @@ async function handleApi(request, response, path) {
     database.exec('BEGIN');
     try {
       statements.deleteRegistries.run(account.id);
-      for (const registry of registriesToPersist) statements.replaceRegistry.run(registry.id, account.id, JSON.stringify(registry), timestamp);
+      for (const registry of registriesToPersist) statements.replaceRegistry.run(registry.id, account.id, JSON.stringify(registry), registry.accessCode, timestamp);
       database.exec('COMMIT');
     } catch (error) {
       database.exec('ROLLBACK');
+      if (error?.code === 'SQLITE_CONSTRAINT_UNIQUE') return json(response, 409, { error: 'That share code is already in use. Please create the list again.' });
       throw error;
     }
     return json(response, 200, { registries: registriesToPersist });
