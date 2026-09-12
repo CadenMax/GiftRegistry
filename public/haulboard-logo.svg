@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 88" role="img" aria-labelledby="title desc">
+  <title id="title">HaulBoard</title>
+  <desc id="desc">A wrapped gift mark beside the HaulBoard wordmark.</desc>
+  <g transform="translate(4 4)">
+    <rect width="80" height="80" rx="22" fill="#e26d52"/>
+    <path d="M18 39h48v28a6 6 0 0 1-6 6H24a6 6 0 0 1-6-6V39Z" fill="#fff8f0"/>
+    <path d="M16 34a5 5 0 0 1 5-5h46a5 5 0 0 1 5 5v8H16v-8Z" fill="#fff8f0"/>
+    <path d="M40 29v44M16 42h56" fill="none" stroke="#e26d52" stroke-width="5"/>
+    <path d="M40 29c-8 0-15-3-15-9 0-4 3-7 7-7 6 0 8 8 8 16Zm0 0c8 0 15-3 15-9 0-4-3-7-7-7-6 0-8 8-8 16Z" fill="#e26d52" stroke="#fff8f0" stroke-width="2" stroke-linejoin="round"/>
+  </g>
+  <text x="104" y="57" fill="#2f2927" font-family="Georgia, 'Times New Roman', serif" font-size="42" font-weight="700" letter-spacing="0">HaulBoard</text>
+</svg>

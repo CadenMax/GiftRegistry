@@ -2,7 +2,6 @@ import {
   ArrowRight,
   Bell,
   BookOpen,
-  Gift as GiftIcon,
   LogOut,
   MessageCircle,
   UserRound,
@@ -713,7 +712,7 @@ function App() {
     <main className="app-shell">
       <header className="topbar" id="top">
         <a className="brand" href={window.location.pathname} onClick={(event) => { event.preventDefault(); clearSharedListUrl(); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-          <span className="brand-mark"><GiftIcon size={18} /></span>
+          <img alt="" className="brand-mark" src="/favicon.svg" />
           HaulBoard
         </a>
         <div className="topbar-actions">
