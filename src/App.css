@@ -1207,6 +1207,7 @@ a:focus-visible {
 .gift-footer span {
     color: var(--muted);
     font-size: .74rem;
+    min-width: 0;
 }
 
 .gift-category {
@@ -1215,16 +1216,28 @@ a:focus-visible {
     color: color-mix(in srgb, var(--tag-color, #ad4938) 75%, #3f302b);
     display: inline-block;
     font-size: .67rem;
+    flex: 1 1 auto;
     font-weight: 800;
+    min-width: 0;
+    overflow: hidden;
     padding: 4px 8px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .gift-footer strong {
     color: var(--ink);
-    flex: 0 1 auto;
-    max-width: 55%;
-    overflow-wrap: anywhere;
+    flex: 0 0 auto;
     text-align: right;
+    white-space: nowrap;
+}
+
+.gift-price-long {
+    font-size: .74rem;
+}
+
+.gift-price-extra-long {
+    font-size: .64rem;
 }
 
 .gift-dependency {
@@ -1959,6 +1972,24 @@ footer span:first-child {
 
     .wide-field {
         grid-column: auto;
+    }
+
+    .gift-footer {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .gift-category {
+        max-width: 100%;
+        overflow: visible;
+        overflow-wrap: anywhere;
+        white-space: normal;
+    }
+
+    .gift-footer strong {
+        max-width: 100%;
+        text-align: left;
     }
 
     footer {

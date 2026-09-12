@@ -68,6 +68,13 @@ type Workspace = "recipient" | "giver";
 
 const guestProfileStorageKey = "giftregistry_guest_profile";
 
+function createClientId() {
+  if (typeof crypto.randomUUID === "function" && window.isSecureContext) return crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 function getStoredGuestProfile(): GiftGiverProfile {
   try {
     const storedProfile = JSON.parse(window.localStorage.getItem(guestProfileStorageKey) ?? "null") as Partial<GiftGiverProfile> | null;
@@ -77,13 +84,13 @@ function getStoredGuestProfile(): GiftGiverProfile {
         mode: "guest",
         displayName: storedProfile.displayName ?? "",
         avatarUrl: storedProfile.avatarUrl,
-        claimToken: storedProfile.claimToken ?? crypto.randomUUID(),
+        claimToken: storedProfile.claimToken ?? createClientId(),
       };
     }
   } catch {
-    return { id: `guest-${crypto.randomUUID()}`, mode: "guest", displayName: "", claimToken: crypto.randomUUID() };
+    return { id: `guest-${createClientId()}`, mode: "guest", displayName: "", claimToken: createClientId() };
   }
-  return { id: `guest-${crypto.randomUUID()}`, mode: "guest", displayName: "", claimToken: crypto.randomUUID() };
+  return { id: `guest-${createClientId()}`, mode: "guest", displayName: "", claimToken: createClientId() };
 }
 
 function App() {
@@ -285,10 +292,10 @@ function App() {
       const storedGuestProfile = getStoredGuestProfile();
       const guestProfileChanged = storedGuestProfile.displayName.trim() !== guestName;
       const guestProfile = guestProfileChanged ? {
-        id: `guest-${crypto.randomUUID()}`,
+        id: `guest-${createClientId()}`,
         mode: "guest" as const,
         displayName: guestName,
-        claimToken: crypto.randomUUID(),
+        claimToken: createClientId(),
       } : { ...giftGiverProfile, mode: "guest" as const, displayName: guestName };
       window.localStorage.setItem(guestProfileStorageKey, JSON.stringify(guestProfile));
       setGiftGiverProfile(guestProfile);
@@ -641,7 +648,7 @@ function App() {
       listName: name,
       occasion: listOccasion.trim(),
       ownerName: account.name,
-      accessCode: crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase(),
+      accessCode: createClientId().slice(0, 6).toUpperCase(),
       claims: [],
     };
     setRegistries((current) => [...current, newRegistry]);
