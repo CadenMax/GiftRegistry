@@ -141,7 +141,7 @@ export function RecipientWorkspace({
             </div>
             <div className="stats-row">
                 <div><strong>{registry.gifts.length}</strong><span>gifts</span></div>
-                <div><strong>${totalValue}</strong><span>total</span></div>
+                <div><strong>${Math.round(totalValue)}</strong><span>total</span></div>
                 <div><strong>{registry.categories.length}</strong><span>categories</span></div>
             </div>
             <button className="settings-toggle" onClick={() => setShowListSettings((visible) => !visible)} type="button">

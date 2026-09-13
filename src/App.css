@@ -1270,7 +1270,7 @@ a:focus-visible {
 .gift-image {
     aspect-ratio: 1.32;
     display: block;
-    object-fit: cover;
+    object-fit: contain;
     width: 100%;
 }
 
