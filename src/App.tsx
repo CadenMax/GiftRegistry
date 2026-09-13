@@ -52,6 +52,7 @@ import {
   signIn,
   updateSharedClaim,
   updateAccountProfile,
+  deleteAccount,
 } from "./lib/accountStore";
 import { clearSharedListUrl, getSharedListCode, setSharedListUrl } from "./lib/sharedListUrl";
 import { normaliseLink, useGiftEditor } from "./lib/useGiftEditor";
@@ -623,6 +624,23 @@ function App() {
     setRegistries((current) =>
       current.map((item) => ({ ...item, ownerName: nextAccount.name })),
     );
+    setShowProfile(false);
+  };
+
+  const removeAccount = async (email: string) => {
+    await deleteAccount(email);
+    clearSharedListUrl();
+    setAccount(null);
+    setGiftGiverProfile(getStoredGuestProfile());
+    setSharedRegistry(null);
+    setActiveSharedCode("");
+    setIsUnlocked(false);
+    setAccessCode("");
+    setWorkspace("recipient");
+    setRegistries([]);
+    setSavedRegistries([]);
+    setActiveRegistryId("");
+    setShowProfile(false);
   };
 
   const saveListDetails = (event: React.FormEvent<HTMLFormElement>) => {
@@ -704,13 +722,13 @@ function App() {
     return (
       <ProfileScreen
         account={account}
-        listCount={registries.length}
         onBack={() => {
           setShowProfile(false);
           setWorkspace("recipient");
         }}
         onSignOut={signOut}
         onSave={saveProfile}
+        onDelete={removeAccount}
       />
     );
   }

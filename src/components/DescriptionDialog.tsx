@@ -10,8 +10,17 @@ type DescriptionDialogProps = {
 export function DescriptionDialog({ title, description, maxLines = 3 }: DescriptionDialogProps) {
     const [open, setOpen] = useState(false);
     const [preview, setPreview] = useState(description);
+    const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 560px)").matches);
     const isTruncated = preview !== description;
     const triggerRef = useRef<HTMLButtonElement>(null);
+    const visibleMaxLines = isMobile ? Math.min(maxLines, 2) : maxLines;
+
+    useEffect(() => {
+        const mediaQuery = window.matchMedia("(max-width: 560px)");
+        const updateMobileState = () => setIsMobile(mediaQuery.matches);
+        mediaQuery.addEventListener("change", updateMobileState);
+        return () => mediaQuery.removeEventListener("change", updateMobileState);
+    }, []);
 
     useEffect(() => {
         let frame = 0;
@@ -25,7 +34,7 @@ export function DescriptionDialog({ title, description, maxLines = 3 }: Descript
             const lineHeight = Number.parseFloat(styles.lineHeight);
             const fits = (text: string) => {
                 measureNode.textContent = text;
-                return measureNode.getBoundingClientRect().height <= lineHeight * maxLines + 1;
+                return measureNode.getBoundingClientRect().height <= lineHeight * visibleMaxLines + 1;
             };
             if (fits(description)) {
                 setPreview((current) => current === description ? current : description);
@@ -51,7 +60,7 @@ export function DescriptionDialog({ title, description, maxLines = 3 }: Descript
         };
         frame = window.requestAnimationFrame(measure);
         return () => window.cancelAnimationFrame(frame);
-    }, [description, maxLines, title]);
+    }, [description, title, visibleMaxLines]);
 
     useEffect(() => {
         if (!open) return;

@@ -753,6 +753,32 @@ async function handleApi(request, response, path) {
     statements.updateAccount.run(name, email, avatarUrl || null, nextPasswordHash, account.id);
     return json(response, 200, { account: { id: account.id, name, email, ...(avatarUrl ? { avatarUrl } : {}) } });
   }
+  if (request.method === 'DELETE' && path === '/api/account') {
+    const body = await readBody(request);
+    const confirmationEmail = String(body.email ?? '').trim().toLowerCase();
+    if (!confirmationEmail || confirmationEmail !== account.email) return json(response, 400, { error: 'Enter your account email exactly to confirm deletion.' });
+    database.exec('BEGIN IMMEDIATE');
+    try {
+      for (const row of statements.sharedRegistries.all()) {
+        const registry = JSON.parse(row.data);
+        const claims = (registry.claims ?? []).filter((claim) => !(claim.giverMode === 'account' && claim.giverId === account.id));
+        if (claims.length !== (registry.claims ?? []).length) {
+          statements.updateRegistry.run(JSON.stringify({ ...registry, claims }), new Date().toISOString(), row.id, row.account_id);
+        }
+      }
+      database.prepare('DELETE FROM conversation_members WHERE member_id = ?').run(account.id);
+      database.prepare('DELETE FROM guest_messages WHERE sender_id = ? OR recipient_id = ?').run(account.id, account.id);
+      database.prepare('DELETE FROM accounts WHERE id = ?').run(account.id);
+      database.exec('COMMIT');
+    } catch (error) {
+      database.exec('ROLLBACK');
+      throw error;
+    }
+    const token = sessionToken(request);
+    if (token) statements.deleteSession.run(tokenHash(token));
+    response.setHeader('Set-Cookie', 'kindlist_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax');
+    return json(response, 200, { ok: true });
+  }
   if (request.method === 'GET' && path === '/api/admin/people') {
     return json(response, 200, { people: adminPeople(account.id) });
   }

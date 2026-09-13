@@ -102,6 +102,13 @@ export async function updateAccountProfile(account: RecipientAccount, details: P
   return response.account;
 }
 
+export async function deleteAccount(email: string) {
+  await request<{ ok: boolean }>('/api/account', {
+    method: 'DELETE',
+    body: JSON.stringify({ email }),
+  });
+}
+
 export async function getAdminPeople() {
   const response = await request<{ people: AdminPerson[] }>('/api/admin/people');
   return response.people;

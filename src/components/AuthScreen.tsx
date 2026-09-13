@@ -1,4 +1,4 @@
-import { ArrowRight, Gift as GiftIcon } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { FormEvent } from "react";
 
 type AuthMode = "create" | "sign-in";
@@ -34,9 +34,7 @@ export function AuthScreen({
         <main className="app-shell">
             <header className="topbar" id="top">
                 <a className="brand" href="#top">
-                    <span className="brand-mark">
-                        <GiftIcon size={18} />
-                    </span>
+                    <img alt="" className="brand-mark" src="/favicon.svg" />
                     HaulBoard
                 </a>
                 <button className="text-button" onClick={onOpenGiver} type="button">
