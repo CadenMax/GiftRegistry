@@ -243,6 +243,13 @@
     gap: 6px;
 }
 
+.auth-card input,
+.unlock-panel input {
+    font-size: .74rem;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
 .auth-card small {
     color: var(--muted);
     font-size: .7rem;
@@ -1215,6 +1222,14 @@ textarea {
     textarea {
         font-size: 16px;
     }
+
+    .add-gift-form .form-grid input,
+    .add-gift-form .form-grid select,
+    .add-gift-form .form-grid textarea,
+    .auth-card input,
+    .unlock-panel input {
+        font-size: 16px;
+    }
 }
 
 button {
@@ -1541,6 +1556,14 @@ a:focus-visible {
     margin-bottom: 18px;
 }
 
+.add-gift-form .form-grid input,
+.add-gift-form .form-grid select,
+.add-gift-form .form-grid textarea {
+    font-size: .74rem;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
 .wide-field {
     grid-column: span 2;
 }
@@ -1568,10 +1591,12 @@ a:focus-visible {
     border-radius: 999px;
     color: var(--muted);
     display: inline-flex;
-    font: inherit;
+    font-size: .74rem;
+    font-weight: 500;
     gap: 6px;
-    min-height: 36px;
-    padding: 7px 11px;
+    line-height: 1.2;
+    min-height: 34px;
+    padding: 6px 10px;
     text-align: left;
 }
 
