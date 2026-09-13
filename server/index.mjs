@@ -896,3 +896,14 @@ server.listen(port, () => {
   const listeningPort = typeof address === 'object' && address ? address.port : port;
   console.log(`kindlist server listening on http://localhost:${listeningPort}`);
 });
+
+const shutdown = (signal) => {
+  console.log(`Received ${signal}; shutting down cleanly.`);
+  server.close(() => {
+    database.close();
+    process.exit(0);
+  });
+};
+
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGINT', () => shutdown('SIGINT'));
