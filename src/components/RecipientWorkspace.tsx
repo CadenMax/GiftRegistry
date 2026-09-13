@@ -11,7 +11,7 @@ import {
     Share2,
     Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ChangeEvent, CSSProperties, Dispatch, FormEvent, SetStateAction } from "react";
 import { GiftFilterControls } from "./GiftFilterControls";
 import { DescriptionDialog } from "./DescriptionDialog";
@@ -192,7 +192,15 @@ export function RecipientWorkspace({
 type Option = { id: string; name: string; color?: string };
 
 function OptionSettings({ title, value, placeholder, onChange, onAdd, options, onDelete, onOptionColorChange }: { title: string; value: string; placeholder: string; onChange: (value: string) => void; onAdd: () => void; options: Option[]; onDelete: (id: string) => void; onOptionColorChange: (id: string, color: string) => void }) {
-    return <div className="settings-group"><strong>{title}</strong><div className="settings-add"><input aria-label={placeholder} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} value={value} /><button aria-label={`Add ${title.slice(0, -1).toLowerCase()}`} className="small-button" onClick={onAdd} type="button"><Plus size={16} /></button></div>{options.map((option) => <div className="setting-option" key={option.id}><span className="setting-option-name"><span className="option-swatch" style={{ backgroundColor: option.color ?? "#e5c7b8" }} />{option.name}</span><span className="setting-option-actions"><ColorPalette label={`${option.name} color`} value={option.color ?? "#e5c7b8"} onChange={(color) => onOptionColorChange(option.id, color)} /><button aria-label={`Delete ${option.name}`} className="delete-button" onClick={() => onDelete(option.id)} title={`Delete ${title.slice(0, -1).toLowerCase()}`} type="button"><Trash2 size={15} /></button></span></div>)}</div>;
+    const inputRef = useRef<HTMLInputElement>(null);
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        onAdd();
+        inputRef.current?.focus();
+    };
+
+    return <div className="settings-group"><strong>{title}</strong><div className="settings-add"><input aria-label={placeholder} onChange={(event) => onChange(event.target.value)} onKeyDown={handleKeyDown} placeholder={placeholder} ref={inputRef} value={value} /><button aria-label={`Add ${title.slice(0, -1).toLowerCase()}`} className="small-button" onClick={onAdd} type="button"><Plus size={16} /></button></div>{options.map((option) => <div className="setting-option" key={option.id}><span className="setting-option-name"><span className="option-swatch" style={{ backgroundColor: option.color ?? "#e5c7b8" }} />{option.name}</span><span className="setting-option-actions"><ColorPalette label={`${option.name} color`} value={option.color ?? "#e5c7b8"} onChange={(color) => onOptionColorChange(option.id, color)} /><button aria-label={`Delete ${option.name}`} className="delete-button" onClick={() => onDelete(option.id)} title={`Delete ${title.slice(0, -1).toLowerCase()}`} type="button"><Trash2 size={15} /></button></span></div>)}</div>;
 }
 
 function GiftForm({ registry, editingGiftId, newGift, newCategory, newStatus, setNewGift, setShowAddGift, setNewCategory, setNewStatus, addGift, addCategory, addStatus, handleImageFile }: { registry: Registry; editingGiftId: string | null; newGift: GiftDraft; newCategory: string; newStatus: string; setNewGift: Dispatch<SetStateAction<GiftDraft>>; setShowAddGift: (value: boolean) => void; setNewCategory: (value: string) => void; setNewStatus: (value: string) => void; addGift: (event: FormEvent<HTMLFormElement>) => void; addCategory: (assignToGift?: boolean) => void; addStatus: (assignToGift?: boolean) => void; handleImageFile: (event: ChangeEvent<HTMLInputElement>) => void }) {
