@@ -135,6 +135,7 @@ export function createRecipientView(
       description: gift.description,
       imageUrl: gift.imageUrl,
       linkUrl: gift.linkUrl,
+      isListInList: gift.isListInList,
       priceLabel: `$${(gift.price ?? 0).toFixed(2)}`,
       categoryName: registry.categories.find((category) => category.id === gift.categoryId)?.name ?? 'Uncategorised',
       categoryColor: registry.categories.find((category) => category.id === gift.categoryId)?.color,
@@ -191,6 +192,8 @@ export function createGiftGiverView(
         title: gift.title,
         description: gift.description,
         imageUrl: gift.imageUrl,
+        linkUrl: gift.linkUrl,
+        isListInList: gift.isListInList,
         priceLabel: `$${(gift.price ?? 0).toFixed(2)}`,
         categoryName: registry.categories.find((category) => category.id === gift.categoryId)?.name ?? 'Uncategorised',
         categoryColor: registry.categories.find((category) => category.id === gift.categoryId)?.color,
@@ -207,6 +210,7 @@ export function createGiftGiverView(
           id: claim.giverId,
           name: claim.giverName,
           state: claim.state,
+          purchasedItems: claim.purchasedItems ?? (claim.purchasedItem ? [claim.purchasedItem] : []),
           avatarUrl: claim.giverAvatarUrl,
         })),
       };
@@ -219,6 +223,8 @@ export function updateGiftClaim(
   giftId: string,
   profile: GiftGiverProfile,
   state: ClaimState | null,
+  purchasedItems?: string[],
+  isListInList = false,
 ) {
   const thisGiftClaims = claims.filter((claim) => claim.giftId === giftId);
   const nonTargetGiftClaims = claims.filter((claim) => claim.giftId !== giftId);
@@ -236,12 +242,13 @@ export function updateGiftClaim(
     giftId,
     giverId: profile.id,
     state,
+    purchasedItems: purchasedItems?.map((item) => item.trim()).filter(Boolean).slice(0, 50),
     giverName: displayName,
     giverMode: profile.mode,
     giverAvatarUrl: profile.avatarUrl,
   };
 
-  const claimedByAnotherGiver = thisGiftClaims.some(
+  const claimedByAnotherGiver = !isListInList && thisGiftClaims.some(
     (claim) => claim.state === 'claimed' && claim.giverId !== profile.id,
   );
 
@@ -249,7 +256,9 @@ export function updateGiftClaim(
     return claims;
   }
 
-  const retainedGiftClaims = state === 'considering'
+  const retainedGiftClaims = isListInList
+    ? thisGiftClaims.filter((claim) => claim.giverId !== profile.id && claimNameKey(claim.giverName) !== profileNameKey)
+    : state === 'considering'
     ? thisGiftClaims.filter((claim) => claimNameKey(claim.giverName) !== profileNameKey)
     : thisGiftClaims.filter((claim) => claim.state === 'considering');
 

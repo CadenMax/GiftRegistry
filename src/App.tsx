@@ -324,15 +324,15 @@ function App() {
     }
   };
 
-  const updateClaim = async (giftId: string, state: ClaimState | null) => {
+  const updateClaim = async (giftId: string, state: ClaimState | null, purchasedItems?: string[]) => {
     if (sharedRegistry && activeSharedCode) {
-      const nextRegistry = await updateSharedClaim(activeSharedCode, giftId, giftGiverProfile, state);
+      const nextRegistry = await updateSharedClaim(activeSharedCode, giftId, giftGiverProfile, state, purchasedItems);
       setSharedRegistry(nextRegistry);
       return;
     }
     setRegistry((current) => ({
       ...current,
-      claims: updateGiftClaim(current.claims, giftId, giftGiverProfile, state),
+      claims: updateGiftClaim(current.claims, giftId, giftGiverProfile, state, purchasedItems, current.gifts.find((gift) => gift.id === giftId)?.isListInList ?? false),
     }));
   };
 

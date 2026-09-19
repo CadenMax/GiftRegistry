@@ -357,9 +357,10 @@ function claimNameKey(name) {
   return String(name || '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 }
 
-function updateClaim(registry, giftId, profile, state) {
+function updateClaim(registry, giftId, profile, state, purchasedItems) {
   const claims = registry.claims ?? [];
   const thisGiftClaims = claims.filter((claim) => claim.giftId === giftId);
+  const isListInList = Boolean(registry.gifts.find((gift) => gift.id === giftId)?.isListInList);
   const profileNameKey = claimNameKey(profile.displayName || 'Guest');
   if (state === null) {
     const ownClaims = thisGiftClaims.filter((claim) => claimNameKey(claim.giverName) === profileNameKey);
@@ -374,17 +375,20 @@ function updateClaim(registry, giftId, profile, state) {
       ],
     };
   }
-  if (thisGiftClaims.some((claim) => claim.state === 'claimed' && claimNameKey(claim.giverName) !== profileNameKey)) return registry;
+  if (!isListInList && thisGiftClaims.some((claim) => claim.state === 'claimed' && claimNameKey(claim.giverName) !== profileNameKey)) return registry;
   const nextClaim = {
     giftId,
     giverId: String(profile.id || `guest-${randomUUID()}`),
     state,
+    ...(Array.isArray(purchasedItems) && purchasedItems.length > 0 ? { purchasedItems } : {}),
     giverName: String(profile.displayName || 'Guest').trim(),
     giverMode: profile.mode === 'account' ? 'account' : 'guest',
     ...(profile.avatarUrl ? { giverAvatarUrl: profile.avatarUrl } : {}),
     ...(profile.mode !== 'account' && profile.claimToken ? { giverToken: profile.claimToken } : {}),
   };
-  const retainedGiftClaims = state === 'considering'
+  const retainedGiftClaims = isListInList
+    ? thisGiftClaims.filter((claim) => claim.giverId !== String(profile.id) && claimNameKey(claim.giverName) !== profileNameKey)
+    : state === 'considering'
     ? thisGiftClaims.filter((claim) => claimNameKey(claim.giverName) !== profileNameKey)
     : thisGiftClaims.filter((claim) => claim.state === 'considering');
   return {

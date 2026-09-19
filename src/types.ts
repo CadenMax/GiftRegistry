@@ -31,6 +31,7 @@ export type Gift = {
   description?: string;
   imageUrl?: string;
   linkUrl?: string;
+  isListInList?: boolean;
   price?: number;
   categoryId?: string;
   status?: string;
@@ -45,6 +46,7 @@ export const blankGift: GiftDraft = {
   description: '',
   imageUrl: '',
   linkUrl: '',
+  isListInList: false,
   price: undefined,
   categoryId: '',
   status: '',
@@ -55,6 +57,8 @@ export type ClaimRecord = {
   giftId: string;
   giverId: string;
   state: ClaimState;
+  purchasedItems?: string[];
+  purchasedItem?: string;
   giverName: string;
   giverMode: 'guest' | 'account';
   giverAvatarUrl?: string;
@@ -94,6 +98,7 @@ export type RecipientView = {
     description?: string;
     imageUrl?: string;
     linkUrl?: string;
+    isListInList?: boolean;
     priceLabel: string;
     categoryName: string;
     categoryColor?: string;
@@ -111,6 +116,8 @@ export type GiftGiverView = {
     title: string;
     description?: string;
     imageUrl?: string;
+    linkUrl?: string;
+    isListInList?: boolean;
     priceLabel: string;
     categoryName: string;
     categoryColor?: string;
@@ -127,6 +134,7 @@ export type GiftGiverView = {
       id: string;
       name: string;
       state: ClaimState;
+      purchasedItems?: string[];
       avatarUrl?: string;
     }>;
   }>;

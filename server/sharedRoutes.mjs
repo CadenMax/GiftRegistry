@@ -53,7 +53,10 @@ export async function handleSharedApi({
       statements.touchGuestProfile.run(new Date().toISOString(), shared.row.id, profile.id, profile.claimToken ?? '');
     }
     const previousClaims = shared.registry.claims ?? [];
-    const nextRegistry = updateClaim(shared.registry, body.giftId, profile, body.state);
+    const purchasedItems = Array.isArray(body.purchasedItems)
+      ? body.purchasedItems.filter((item) => typeof item === 'string').map((item) => item.trim().slice(0, 240)).filter(Boolean).slice(0, 50)
+      : undefined;
+    const nextRegistry = updateClaim(shared.registry, body.giftId, profile, body.state, purchasedItems);
     statements.updateRegistry.run(JSON.stringify(nextRegistry), new Date().toISOString(), shared.row.id, shared.row.account_id);
     const claimChanged = JSON.stringify(previousClaims) !== JSON.stringify(nextRegistry.claims ?? []);
     if (claimChanged) {
