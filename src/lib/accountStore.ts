@@ -142,10 +142,11 @@ export async function updateSharedClaim(
   giftId: string,
   profile: { id: string; mode: 'guest' | 'account'; displayName: string; avatarUrl?: string; claimToken?: string },
   state: 'considering' | 'claimed' | null,
+  purchasedItems?: string[],
 ) {
   const response = await request<{ registry: Registry }>(`/api/shared/${encodeURIComponent(accessCode)}/claims`, {
     method: 'PATCH',
-    body: JSON.stringify({ giftId, profile, state }),
+    body: JSON.stringify({ giftId, profile, state, purchasedItems }),
   });
   return response.registry;
 }

@@ -157,6 +157,8 @@ export function RecipientWorkspace({
                 </div>
             ) : null}
             {showAddGift ? (
+                <>
+                <label className="gift-type-toggle"><input checked={Boolean(newGift.isListInList)} onChange={(event) => setNewGift({ ...newGift, isListInList: event.target.checked })} type="checkbox" /> This link is a list of possible gifts</label>
                 <GiftForm
                     registry={registry}
                     editingGiftId={editingGiftId}
@@ -172,6 +174,7 @@ export function RecipientWorkspace({
                     addStatus={addStatus}
                     handleImageFile={handleImageFile}
                 />
+                </>
             ) : null}
             <GiftFilterControls registry={registry} filters={filters} setFilters={setFilters}>
                 <button className="primary-button add-gift-button" onClick={() => { setNewGift({ title: "", description: "", imageUrl: "", linkUrl: "", price: undefined, categoryId: "", status: "", dependsOn: [] }); setEditingGiftId(null); setShowAddGift(true); }} type="button"><Plus size={17} /> Add a gift</button>
