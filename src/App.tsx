@@ -102,6 +102,8 @@ function App() {
   const [sharedRegistry, setSharedRegistry] = useState<Registry | null>(null);
   const [activeRegistryId, setActiveRegistryId] = useState("");
   const [sessionReady, setSessionReady] = useState(false);
+  const [registriesLoaded, setRegistriesLoaded] = useState(false);
+  const [registryLoadError, setRegistryLoadError] = useState("");
   const registry = registries.find((item) => item.id === activeRegistryId) ?? initialRegistry;
   const setRegistry = (update: SetStateAction<Registry>) => {
     setRegistries((current) =>
@@ -204,12 +206,19 @@ function App() {
           }
         }
         if (storedAccount) {
-          const nextRegistries = await getAccountRegistries(storedAccount);
-          const nextSavedRegistries = await getSavedRegistries();
-          if (cancelled) return;
-          setRegistries(nextRegistries);
-          setSavedRegistries(nextSavedRegistries);
-          setActiveRegistryId(nextRegistries[0]?.id ?? "");
+          try {
+            const nextRegistries = await getAccountRegistries(storedAccount);
+            const nextSavedRegistries = await getSavedRegistries();
+            if (cancelled) return;
+            setRegistries(nextRegistries);
+            setSavedRegistries(nextSavedRegistries);
+            setActiveRegistryId(nextRegistries[0]?.id ?? "");
+            setRegistriesLoaded(true);
+          } catch (error) {
+            if (!cancelled) {
+              setRegistryLoadError(error instanceof Error ? error.message : "Your lists could not be loaded.");
+            }
+          }
         }
       } finally {
         if (!cancelled) setSessionReady(true);
@@ -220,8 +229,8 @@ function App() {
   }, [sharedCode]);
 
   useEffect(() => {
-    if (account && sessionReady) void saveAccountRegistries(account, registries);
-  }, [account, registries, sessionReady]);
+    if (account && sessionReady && registriesLoaded) void saveAccountRegistries(account, registries);
+  }, [account, registries, registriesLoaded, sessionReady]);
 
   useEffect(() => {
     if (!isUnlocked || !activeSharedCode) return;
@@ -450,11 +459,20 @@ function App() {
       setWorkspace("recipient");
       setShowProfile(false);
       setShowListSetup(false);
-      const nextRegistries = await getAccountRegistries(nextAccount);
-      const nextSavedRegistries = await getSavedRegistries();
+      let nextRegistries: Registry[];
+      let nextSavedRegistries: Registry[];
+      try {
+        nextRegistries = await getAccountRegistries(nextAccount);
+        nextSavedRegistries = await getSavedRegistries();
+      } catch (error) {
+        setRegistryLoadError(error instanceof Error ? error.message : "Your lists could not be loaded.");
+        throw error;
+      }
       setRegistries(nextRegistries);
       setSavedRegistries(nextSavedRegistries);
       setActiveRegistryId(nextRegistries[0]?.id ?? "");
+      setRegistryLoadError("");
+      setRegistriesLoaded(true);
       setAuthPassword("");
     } catch (error) {
       setAuthError(
@@ -476,6 +494,8 @@ function App() {
     setAccessCode("");
     setWorkspace("recipient");
     setRegistries([]);
+    setRegistriesLoaded(false);
+    setRegistryLoadError("");
     setSavedRegistries([]);
     setActiveRegistryId("");
     setShowListSetup(false);
@@ -679,6 +699,20 @@ function App() {
 
   if (!sessionReady) {
     return <main className="app-shell" />;
+  }
+
+  if (account && registryLoadError) {
+    return (
+      <main className="app-shell">
+        <section className="auth-card">
+          <h2>Your lists could not be loaded</h2>
+          <p>{registryLoadError}</p>
+          <button className="primary-button" onClick={() => window.location.reload()}>
+            Retry
+          </button>
+        </section>
+      </main>
+    );
   }
 
   if (!account && workspace === "recipient") {
