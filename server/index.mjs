@@ -122,7 +122,6 @@ const statements = {
   updateAccount: database.prepare('UPDATE accounts SET name = ?, email = ?, avatar_url = ?, password_hash = ? WHERE id = ?'),
   registries: database.prepare('SELECT id, data FROM registries WHERE account_id = ? ORDER BY updated_at ASC'),
   replaceRegistry: database.prepare('INSERT INTO registries (id, account_id, data, access_code, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data, access_code = excluded.access_code, updated_at = excluded.updated_at'),
-  deleteRegistries: database.prepare('DELETE FROM registries WHERE account_id = ?'),
   deleteRegistry: database.prepare('DELETE FROM registries WHERE id = ? AND account_id = ?'),
   session: database.prepare('SELECT account_id, expires_at FROM sessions WHERE token_hash = ?'),
   createSession: database.prepare('INSERT INTO sessions (token_hash, account_id, expires_at) VALUES (?, ?, ?)'),
@@ -685,12 +684,11 @@ async function handleApi(request, response, path) {
     return json(response, 200, { ok: true });
   }
   if (request.method === 'PUT' && path === '/api/registries') {
+    // Upsert-only: lists are never deleted here just because they're missing from the payload.
+    // Removal must go through the explicit DELETE /api/registries/:id endpoint below.
     const body = await readBody(request);
     const registries = Array.isArray(body.registries) ? body.registries : [];
     const existingRows = statements.registries.all(account.id);
-    if (registries.length === 0 && existingRows.length > 0) {
-      return json(response, 409, { error: 'Refusing to replace existing lists with an empty list.' });
-    }
     const incomingAccessCodes = new Set();
     for (const registry of registries) {
       const accessCode = String(registry.accessCode ?? '').trim().toUpperCase();
@@ -715,7 +713,6 @@ async function handleApi(request, response, path) {
     const timestamp = new Date().toISOString();
     database.exec('BEGIN');
     try {
-      statements.deleteRegistries.run(account.id);
       for (const registry of registriesToPersist) statements.replaceRegistry.run(registry.id, account.id, JSON.stringify(registry), registry.accessCode, timestamp);
       database.exec('COMMIT');
     } catch (error) {
@@ -723,7 +720,8 @@ async function handleApi(request, response, path) {
       if (error?.code === 'SQLITE_CONSTRAINT_UNIQUE') return json(response, 409, { error: 'That share code is already in use. Please create the list again.' });
       throw error;
     }
-    return json(response, 200, { registries: registriesToPersist });
+    const allRegistries = statements.registries.all(account.id).map((row) => JSON.parse(row.data));
+    return json(response, 200, { registries: allRegistries });
   }
   if (request.method === 'GET' && path === '/api/saved-lists') {
     const registries = statements.savedLists.all(account.id)

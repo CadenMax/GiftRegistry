@@ -112,7 +112,7 @@ test('owner cannot access their own shared list and public responses strip guest
   assert.equal('giverToken' in guestList.body.registry.claims[0], false);
 });
 
-test('empty registry replacement is rejected, while explicit deletion can remove the final list', async (t) => {
+test('an empty save payload never deletes existing lists; only explicit deletion can', async (t) => {
   const server = await startServer();
   t.after(() => server.stop());
   const owner = await register(server, 'Owner', 'owner@example.com');
@@ -139,7 +139,7 @@ test('empty registry replacement is rejected, while explicit deletion can remove
     headers,
     body: JSON.stringify({ registries: [] }),
   });
-  assert.equal(accidentalEmptySave.response.status, 409);
+  assert.equal(accidentalEmptySave.response.status, 200);
   const stillPresent = await request(server, '/api/registries', { headers });
   assert.equal(stillPresent.body.registries.length, 1);
 
@@ -147,6 +147,51 @@ test('empty registry replacement is rejected, while explicit deletion can remove
   assert.equal(deleted.response.status, 200);
   const emptyAfterExplicitDelete = await request(server, '/api/registries', { headers });
   assert.deepEqual(emptyAfterExplicitDelete.body.registries, []);
+});
+
+test('saving one list never deletes a sibling list omitted from the payload', async (t) => {
+  const server = await startServer();
+  t.after(() => server.stop());
+  const owner = await register(server, 'Owner', 'owner@example.com');
+  const headers = { Cookie: owner.cookie };
+  const registryA = {
+    id: 'registry-a',
+    listName: 'List A',
+    occasion: 'Birthday',
+    ownerName: 'Owner',
+    accessCode: 'AAA111',
+    categories: [],
+    statuses: [],
+    gifts: [],
+    claims: [],
+  };
+  const registryB = {
+    id: 'registry-b',
+    listName: 'List B',
+    occasion: 'Wedding',
+    ownerName: 'Owner',
+    accessCode: 'BBB222',
+    categories: [],
+    statuses: [],
+    gifts: [],
+    claims: [],
+  };
+  await request(server, '/api/registries', {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ registries: [registryA, registryB] }),
+  });
+
+  const savedOnlyA = await request(server, '/api/registries', {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ registries: [{ ...registryA, listName: 'List A updated' }] }),
+  });
+  assert.equal(savedOnlyA.response.status, 200);
+
+  const afterSave = await request(server, '/api/registries', { headers });
+  const ids = afterSave.body.registries.map((r) => r.id).sort();
+  assert.deepEqual(ids, ['registry-a', 'registry-b']);
 });
 
 test('admin removal clears account access history', async (t) => {

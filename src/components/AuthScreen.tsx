@@ -80,7 +80,9 @@ export function AuthScreen({
                         <label>
                             Your name
                             <input
+                                autoComplete="name"
                                 autoFocus
+                                name="name"
                                 required
                                 onChange={(event) => onNameChange(event.target.value)}
                                 placeholder="e.g. Alex Morgan"
@@ -91,6 +93,8 @@ export function AuthScreen({
                     <label>
                         Email address
                         <input
+                            autoComplete="email"
+                            name="email"
                             required
                             onChange={(event) => onEmailChange(event.target.value)}
                             placeholder="you@example.com"
@@ -101,7 +105,9 @@ export function AuthScreen({
                     <label>
                         Password
                         <input
+                            autoComplete={authMode === "create" ? "new-password" : "current-password"}
                             minLength={8}
+                            name="password"
                             required
                             onChange={(event) => onPasswordChange(event.target.value)}
                             placeholder="At least 8 characters"

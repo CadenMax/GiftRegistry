@@ -2116,7 +2116,58 @@ footer span:first-child {
 @media (max-width: 560px) {
 
     .gift-grid {
-        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .gift-copy {
+        padding: 8px;
+    }
+
+    .gift-title-row h3 {
+        font-size: .78rem;
+        margin: 4px 0 3px;
+    }
+
+    .gift-copy p,
+    .gift-description-trigger,
+    .gift-description-preview {
+        font-size: .62rem;
+        -webkit-line-clamp: 2;
+    }
+
+    .gift-card-toolbar {
+        min-height: 20px;
+    }
+
+    .claim-tag {
+        font-size: .58rem;
+        padding: 3px 5px;
+    }
+
+    .gift-footer {
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 8px;
+    }
+
+    .gift-footer span {
+        font-size: .62rem;
+    }
+
+    .gift-category {
+        font-size: .58rem;
+        padding: 3px 6px;
+    }
+
+    .gift-dependency {
+        font-size: .6rem;
+        padding: 6px 0 2px;
+    }
+
+    .gift-link {
+        font-size: .66rem;
+        margin-top: 6px;
     }
 
     .topbar {

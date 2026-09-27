@@ -617,13 +617,11 @@ function App() {
   const deleteActiveList = async () => {
     if (!window.confirm(`Delete "${registry.listName}"? This will remove all gifts on this list.`)) return;
     const remaining = registries.filter((item) => item.id !== activeRegistryId);
-    if (remaining.length === 0) {
-      try {
-        await deleteAccountRegistry(activeRegistryId);
-      } catch (error) {
-        window.alert(error instanceof Error ? error.message : 'Unable to delete this list.');
-        return;
-      }
+    try {
+      await deleteAccountRegistry(activeRegistryId);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Unable to delete this list.');
+      return;
     }
     setRegistries(remaining);
     setIsUnlocked(false);
