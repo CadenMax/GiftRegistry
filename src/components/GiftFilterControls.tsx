@@ -9,6 +9,7 @@ type GiftFilterControlsProps = {
     setFilters: (update: Partial<GiftFilters>) => void;
     claimFilter?: "all" | "available" | "considering" | "claimed";
     setClaimFilter?: (value: "all" | "available" | "considering" | "claimed") => void;
+    showStatuses?: boolean;
     children?: ReactNode;
 };
 
@@ -25,7 +26,14 @@ const sortOptions = [
 
 function MultiSelectDropdown({ label, selectedIds, options, onChange }: { label: string; selectedIds: string[]; options: Array<{ id: string; name: string }>; onChange: (ids: string[]) => void }) {
     const dropdownRef = useRef<HTMLDetailsElement>(null);
-    const summary = selectedIds.length === 0 ? `All ${label.toLowerCase()}` : `${selectedIds.length} selected`;
+    const noneSelected = selectedIds.length === 1 && selectedIds[0] === "__none__";
+    const allSelected = selectedIds.length === 0;
+    const summary = allSelected ? `All ${label.toLowerCase()}` : `${noneSelected ? 0 : selectedIds.length} selected`;
+    const updateSelection = (optionId: string, checked: boolean) => {
+        const currentIds = noneSelected ? [] : allSelected ? options.map((option) => option.id) : selectedIds;
+        const nextIds = checked ? [...currentIds, optionId] : currentIds.filter((id) => id !== optionId);
+        onChange(nextIds.length === 0 ? ["__none__"] : nextIds.length === options.length ? [] : nextIds);
+    };
 
     useEffect(() => {
         const closeOnOutsideClick = (event: MouseEvent) => {
@@ -44,14 +52,16 @@ function MultiSelectDropdown({ label, selectedIds, options, onChange }: { label:
             <details className="filter-dropdown" ref={dropdownRef}>
                 <summary><span>{summary}</span><ChevronDown size={14} /></summary>
                 <div className="filter-dropdown-menu">
-                    {options.length === 0 ? <small>No {label.toLowerCase()} yet</small> : options.map((option) => <label key={option.id}><input checked={selectedIds.includes(option.id)} onChange={(event) => onChange(event.target.checked ? [...selectedIds, option.id] : selectedIds.filter((id) => id !== option.id))} type="checkbox" /> {option.name}</label>)}
+                    {options.length === 0 ? <small>No {label.toLowerCase()} yet</small> : options.map((option) => <label key={option.id}><input checked={!noneSelected && (allSelected || selectedIds.includes(option.id))} onChange={(event) => updateSelection(option.id, event.target.checked)} type="checkbox" /> {option.name}</label>)}
                 </div>
             </details>
         </div>
     );
 }
 
-export function GiftFilterControls({ registry, filters, setFilters, claimFilter, setClaimFilter, children }: GiftFilterControlsProps) {
+export function GiftFilterControls({ registry, filters, setFilters, claimFilter, setClaimFilter, showStatuses = true, children }: GiftFilterControlsProps) {
+    const linkedDependencyGifts = registry.gifts.filter((gift) => registry.gifts.some((otherGift) => otherGift.id !== gift.id && otherGift.dependsOn.includes(gift.id)));
+    const categoryOptions = [{ id: "__uncategorised__", name: "Uncategorised" }, ...registry.categories].sort((left, right) => left.name.localeCompare(right.name));
     const maxGiftPrice = Math.ceil(Math.max(0, ...registry.gifts.map((gift) => gift.price ?? 0)));
     const minPrice = filters.minPrice ?? 0;
     const maxPrice = filters.maxPrice ?? maxGiftPrice;
@@ -67,12 +77,12 @@ export function GiftFilterControls({ registry, filters, setFilters, claimFilter,
         <section className="filter-section">
             <div className="filter-heading"><Search size={16} /><span>Filter and sort</span></div>
             <div className="filter-controls-row">
-            <label className="filter-select-field">Sort by<select value={filters.sort} onChange={(event) => setFilters({ sort: event.target.value as GiftFilters["sort"] })}>{sortOptions.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
-            <MultiSelectDropdown label="Categories" options={registry.categories} selectedIds={filters.categoryIds} onChange={(categoryIds) => setFilters({ categoryIds })} />
-            <MultiSelectDropdown label="Statuses" options={registry.statuses} selectedIds={filters.statusIds} onChange={(statusIds) => setFilters({ statusIds })} />
+            <label className="filter-select-field">Sort by<select value={filters.sort} onChange={(event) => setFilters({ sort: event.target.value as GiftFilters["sort"] })}>{sortOptions.filter(([value]) => showStatuses || !value.startsWith("status-")).map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
+            <MultiSelectDropdown label="Categories" options={categoryOptions} selectedIds={filters.categoryIds} onChange={(categoryIds) => setFilters({ categoryIds })} />
+            {showStatuses ? <MultiSelectDropdown label="Statuses" options={registry.statuses} selectedIds={filters.statusIds} onChange={(statusIds) => setFilters({ statusIds })} /> : null}
             <div className="price-range-field"><span>Price range</span><div className="price-range-control"><div className="price-range-values"><label><span className="sr-only">Minimum price</span><span>$</span><input aria-label="Minimum price" max={maxPrice} min="0" onChange={(event) => updateMinPrice(Number(event.target.value))} style={{ width: minInputWidth }} type="number" value={minPrice} /></label><label><span className="sr-only">Maximum price</span><span>$</span><input aria-label="Maximum price" max={maxGiftPrice} min={minPrice} onChange={(event) => updateMaxPrice(Number(event.target.value))} style={{ width: maxInputWidth }} type="number" value={maxPrice} /></label></div><div className="price-range-sliders"><span aria-hidden="true" className="price-range-fill" style={{ left: `max(6.5px, ${minPosition}%)`, right: `max(6.5px, ${100 - maxPosition}%)` }} /><input aria-label="Minimum price slider" max={maxGiftPrice} min="0" onChange={(event) => updateMinPrice(Number(event.target.value))} type="range" value={minPrice} /><input aria-label="Maximum price slider" max={maxGiftPrice} min="0" onChange={(event) => updateMaxPrice(Number(event.target.value))} type="range" value={maxPrice} /></div></div></div>
             <label className="filter-select-field">Has dependency<select value={filters.dependency} onChange={(event) => setFilters({ dependency: event.target.value as GiftFilters["dependency"] })}><option value="all">Any</option><option value="yes">Yes</option><option value="no">No</option></select></label>
-            <label className="filter-select-field">Is dependent on<select value={filters.dependentOnGiftId} onChange={(event) => setFilters({ dependentOnGiftId: event.target.value })}><option value="">Any gift</option>{registry.gifts.map((gift) => <option key={gift.id} value={gift.id}>{gift.title}</option>)}</select></label>
+            <label className="filter-select-field">Is dependent on<select value={filters.dependentOnGiftId} onChange={(event) => setFilters({ dependentOnGiftId: event.target.value })}><option value="">{linkedDependencyGifts.length ? "Any linked gift" : "Nothing Here"}</option>{linkedDependencyGifts.map((gift) => <option key={gift.id} value={gift.id}>{gift.title}</option>)}</select></label>
             {claimFilter && setClaimFilter ? <label className="filter-select-field">Status<select value={claimFilter} onChange={(event) => setClaimFilter(event.target.value as typeof claimFilter)}><option value="all">Everything</option><option value="available">Available</option><option value="considering">Considering</option><option value="claimed">Claimed</option></select></label> : null}
             {children}
             </div>

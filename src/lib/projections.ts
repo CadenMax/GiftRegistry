@@ -47,9 +47,13 @@ function sortGifts(gifts: Gift[], sort: GiftFilters['sort'], categoryNames: Reco
 }
 
 function filterGifts(gifts: Gift[], filters: GiftFilters) {
+  const noCategoriesSelected = filters.categoryIds.includes('__none__');
+  const allCategoriesSelected = filters.categoryIds.length === 0;
+  const selectedCategories = filters.categoryIds.filter((categoryId) => categoryId !== '__uncategorised__' && categoryId !== '__none__');
+  const includeUncategorised = filters.categoryIds.length === 0 || filters.categoryIds.includes('__uncategorised__');
   return gifts
-    .filter((gift) => filters.categoryIds.length === 0 || filters.categoryIds.includes(gift.categoryId ?? ''))
-    .filter((gift) => filters.statusIds.length === 0 || filters.statusIds.includes(gift.status ?? ''))
+    .filter((gift) => noCategoriesSelected || allCategoriesSelected || (gift.categoryId ? selectedCategories.includes(gift.categoryId) : includeUncategorised))
+    .filter((gift) => filters.statusIds.length === 0 || (!filters.statusIds.includes('__none__') && filters.statusIds.includes(gift.status ?? '')))
     .filter((gift) => filters.minPrice === undefined || (gift.price ?? 0) >= filters.minPrice)
     .filter((gift) => filters.maxPrice === undefined || (gift.price ?? 0) <= filters.maxPrice)
     .filter((gift) => {

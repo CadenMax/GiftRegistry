@@ -80,10 +80,25 @@ export function useGiftEditor({ registry, setRegistry }: UseGiftEditorOptions) {
         canvas.width = Math.max(1, Math.round(source.naturalWidth * scale));
         canvas.height = Math.max(1, Math.round(source.naturalHeight * scale));
         canvas.getContext("2d")?.drawImage(source, 0, 0, canvas.width, canvas.height);
-        setNewGift((current) => ({
-          ...current,
-          imageUrl: canvas.toDataURL("image/jpeg", 0.82),
-        }));
+        const readCompressedImage = (blob: Blob) => {
+          const compressedReader = new FileReader();
+          compressedReader.addEventListener("load", () => {
+            setNewGift((current) => ({
+              ...current,
+              imageUrl: String(compressedReader.result ?? ""),
+            }));
+          });
+          compressedReader.readAsDataURL(blob);
+        };
+        canvas.toBlob((webpBlob) => {
+          if (webpBlob?.type === "image/webp") {
+            readCompressedImage(webpBlob);
+            return;
+          }
+          canvas.toBlob((jpegBlob) => {
+            if (jpegBlob) readCompressedImage(jpegBlob);
+          }, "image/jpeg", 0.82);
+        }, "image/webp", 0.84);
       });
       source.src = String(reader.result ?? "");
     });

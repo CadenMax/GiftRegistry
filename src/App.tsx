@@ -432,6 +432,20 @@ function App() {
     setTimeout(() => setCopied(false), 1800);
   };
 
+  const shareCode = async () => {
+    const shareUrl = new URL(window.location.href);
+    shareUrl.searchParams.set("list", registry.accessCode);
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: registry.listName, text: `View ${registry.listName}`, url: shareUrl.toString() });
+        return;
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+    }
+    await copyCode();
+  };
+
   const handleAuthSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAuthError("");
@@ -844,6 +858,7 @@ function App() {
           editGift={editGift}
           deleteGift={deleteGift}
           copyCode={copyCode}
+          shareCode={shareCode}
           handleImageFile={handleImageFile}
           normaliseLink={normaliseLink}
           onSelectList={selectRegistry}
