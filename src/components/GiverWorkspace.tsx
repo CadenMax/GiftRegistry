@@ -219,6 +219,7 @@ export function GiverWorkspace({ registry, view, profile, accessCode, accessErro
                                     <article className="gift-card" key={gift.id}>
                                         {gift.imageUrl ? <img alt={gift.title} className="gift-image" src={gift.imageUrl} /> : <div className="gift-image gift-image-placeholder"><GiftIcon size={24} /><span>No image</span></div>}
                                         <div className="gift-copy">
+                                            <div className="gift-card-toolbar"><span>{gift.status ? <span className="gift-status" style={{ "--tag-color": gift.statusColor } as CSSProperties}>{gift.status}</span> : null}</span></div>
                                             <div className="gift-title-row"><div><h3>{gift.title}</h3>{gift.description ? <DescriptionDialog description={gift.description} maxLines={2} title={gift.title} /> : null}</div></div>
                                             {gift.dependenciesLabel ? <div className="gift-dependency dependency-alert">Depends on: {gift.dependenciesLabel}</div> : null}{gift.linkUrl ? <a className="gift-link" href={gift.linkUrl} rel="noreferrer" target="_blank">Open link <ArrowRight size={15} /></a> : null}
                                             <ClaimPeople people={gift.claimPeople} onMessage={onMessage} />

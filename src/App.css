@@ -732,8 +732,26 @@
 }
 
 .share-compact .copy-button {
+    border: 1px solid #d9c0b4;
+    gap: 5px;
+    padding: 5px 7px;
+}
+
+.share-link-button {
+    align-items: center;
+    background: var(--coral);
     border: 0;
-    padding: 3px;
+    border-radius: 6px;
+    color: #fff;
+    display: inline-flex;
+    font-size: .72rem;
+    font-weight: 700;
+    gap: 5px;
+    padding: 6px 8px;
+}
+
+.share-link-button:hover {
+    background: var(--coral-dark);
 }
 
 .section-heading h2,
@@ -855,9 +873,34 @@
 .unlock-panel label {
     color: var(--muted);
     display: grid;
-    font-size: .74rem;
-    font-weight: 700;
+    font-size: .82rem;
+    font-weight: 800;
     gap: 6px;
+}
+
+.add-gift-form .form-grid label:has(input[required]) {
+    font-size: 0;
+}
+
+.add-gift-form .form-grid label:has(input[required])::before {
+    color: var(--coral-dark);
+    content: "Item name *";
+    display: block;
+    font-size: .9rem;
+}
+
+.add-gift-form .form-grid label {
+    color: var(--ink);
+    font-size: .9rem;
+    font-weight: 800;
+    gap: 8px;
+}
+
+.add-gift-form .form-grid .optional-label {
+    display: inline;
+    font-size: .72rem;
+    font-weight: 500;
+    margin-left: 3px;
 }
 
 .toolbar-row select {
