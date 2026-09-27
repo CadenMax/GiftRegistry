@@ -123,6 +123,7 @@ const statements = {
   registries: database.prepare('SELECT id, data FROM registries WHERE account_id = ? ORDER BY updated_at ASC'),
   replaceRegistry: database.prepare('INSERT INTO registries (id, account_id, data, access_code, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data, access_code = excluded.access_code, updated_at = excluded.updated_at'),
   deleteRegistries: database.prepare('DELETE FROM registries WHERE account_id = ?'),
+  deleteRegistry: database.prepare('DELETE FROM registries WHERE id = ? AND account_id = ?'),
   session: database.prepare('SELECT account_id, expires_at FROM sessions WHERE token_hash = ?'),
   createSession: database.prepare('INSERT INTO sessions (token_hash, account_id, expires_at) VALUES (?, ?, ?)'),
   deleteSession: database.prepare('DELETE FROM sessions WHERE token_hash = ?'),
@@ -678,9 +679,18 @@ async function handleApi(request, response, path) {
     const registries = statements.registries.all(account.id).map((row) => JSON.parse(row.data));
     return json(response, 200, { registries });
   }
+  if (request.method === 'DELETE' && path.startsWith('/api/registries/')) {
+    const registryId = decodeURIComponent(path.slice('/api/registries/'.length));
+    statements.deleteRegistry.run(registryId, account.id);
+    return json(response, 200, { ok: true });
+  }
   if (request.method === 'PUT' && path === '/api/registries') {
     const body = await readBody(request);
     const registries = Array.isArray(body.registries) ? body.registries : [];
+    const existingRows = statements.registries.all(account.id);
+    if (registries.length === 0 && existingRows.length > 0) {
+      return json(response, 409, { error: 'Refusing to replace existing lists with an empty list.' });
+    }
     const incomingAccessCodes = new Set();
     for (const registry of registries) {
       const accessCode = String(registry.accessCode ?? '').trim().toUpperCase();
@@ -688,7 +698,7 @@ async function handleApi(request, response, path) {
       incomingAccessCodes.add(accessCode);
     }
     const existingRegistries = new Map(
-      statements.registries.all(account.id).map((row) => {
+      existingRows.map((row) => {
         const registry = JSON.parse(row.data);
         return [registry.id, registry];
       }),

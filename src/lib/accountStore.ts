@@ -132,6 +132,10 @@ export async function saveAccountRegistries(_account: RecipientAccount, registri
   });
 }
 
+export async function deleteAccountRegistry(registryId: string) {
+  await request<{ ok: boolean }>(`/api/registries/${encodeURIComponent(registryId)}`, { method: 'DELETE' });
+}
+
 export async function getSharedRegistry(accessCode: string) {
   const response = await request<{ registry: Registry }>(`/api/shared/${encodeURIComponent(accessCode)}`);
   return response.registry;

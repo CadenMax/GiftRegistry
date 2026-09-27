@@ -112,6 +112,43 @@ test('owner cannot access their own shared list and public responses strip guest
   assert.equal('giverToken' in guestList.body.registry.claims[0], false);
 });
 
+test('empty registry replacement is rejected, while explicit deletion can remove the final list', async (t) => {
+  const server = await startServer();
+  t.after(() => server.stop());
+  const owner = await register(server, 'Owner', 'owner@example.com');
+  const registry = {
+    id: 'registry-test',
+    listName: 'Test list',
+    occasion: 'Birthday',
+    ownerName: 'Owner',
+    accessCode: 'TEST123',
+    categories: [],
+    statuses: [],
+    gifts: [],
+    claims: [],
+  };
+  const headers = { Cookie: owner.cookie };
+  await request(server, '/api/registries', {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ registries: [registry] }),
+  });
+
+  const accidentalEmptySave = await request(server, '/api/registries', {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ registries: [] }),
+  });
+  assert.equal(accidentalEmptySave.response.status, 409);
+  const stillPresent = await request(server, '/api/registries', { headers });
+  assert.equal(stillPresent.body.registries.length, 1);
+
+  const deleted = await request(server, '/api/registries/registry-test', { method: 'DELETE', headers });
+  assert.equal(deleted.response.status, 200);
+  const emptyAfterExplicitDelete = await request(server, '/api/registries', { headers });
+  assert.deepEqual(emptyAfterExplicitDelete.body.registries, []);
+});
+
 test('admin removal clears account access history', async (t) => {
   const server = await startServer();
   t.after(() => server.stop());
