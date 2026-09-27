@@ -17,6 +17,7 @@ import { GiftFilterControls } from "./GiftFilterControls";
 import { DescriptionDialog } from "./DescriptionDialog";
 import { ColorPalette } from "./ColorPalette";
 import { DependencySelector } from "./DependencySelector";
+import { formatCurrency } from "../lib/projections";
 import type { GiftDraft, GiftFilters, RecipientView, Registry } from "../types";
 
 type RecipientWorkspaceProps = {
@@ -144,7 +145,7 @@ export function RecipientWorkspace({
             </div>
             <div className="stats-row">
                 <div><strong>{registry.gifts.length}</strong><span>gifts</span></div>
-                <div><strong>${Math.round(totalValue)}</strong><span>total</span></div>
+                <div><strong>${formatCurrency(totalValue, 0)}</strong><span>total</span></div>
                 <div><strong>{registry.categories.length}</strong><span>categories</span></div>
             </div>
             <button className="settings-toggle" onClick={() => setShowListSettings((visible) => !visible)} type="button">

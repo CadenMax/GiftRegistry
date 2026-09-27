@@ -10,6 +10,10 @@ import type {
   GiftFilters,
 } from '../types';
 
+export function formatCurrency(value: number, maximumFractionDigits = 2) {
+  return value.toLocaleString('en-US', { maximumFractionDigits, minimumFractionDigits: maximumFractionDigits });
+}
+
 function sortGifts(gifts: Gift[], sort: GiftFilters['sort'], categoryNames: Record<string, string>, statusNames: Record<string, string>) {
   return [...gifts].sort((left, right) => {
     const direction = sort.endsWith('-desc') ? -1 : 1;
@@ -140,7 +144,7 @@ export function createRecipientView(
       imageUrl: gift.imageUrl,
       linkUrl: gift.linkUrl,
       isListInList: gift.isListInList,
-      priceLabel: `$${(gift.price ?? 0).toFixed(2)}`,
+      priceLabel: `$${formatCurrency(gift.price ?? 0)}`,
       categoryName: registry.categories.find((category) => category.id === gift.categoryId)?.name ?? 'Uncategorised',
       categoryColor: registry.categories.find((category) => category.id === gift.categoryId)?.color,
       status: gift.status ? statusNames[gift.status] ?? gift.status : undefined,
@@ -198,7 +202,7 @@ export function createGiftGiverView(
         imageUrl: gift.imageUrl,
         linkUrl: gift.linkUrl,
         isListInList: gift.isListInList,
-        priceLabel: `$${(gift.price ?? 0).toFixed(2)}`,
+        priceLabel: `$${formatCurrency(gift.price ?? 0)}`,
         categoryName: registry.categories.find((category) => category.id === gift.categoryId)?.name ?? 'Uncategorised',
         categoryColor: registry.categories.find((category) => category.id === gift.categoryId)?.color,
         status: gift.status ? statusNames[gift.status] ?? gift.status : undefined,
