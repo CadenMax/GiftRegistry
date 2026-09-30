@@ -5,6 +5,8 @@ export type RecipientAccount = {
   name: string;
   email: string;
   avatarUrl?: string;
+  emailVerified: boolean;
+  marketingOptIn: boolean;
 };
 
 export type ProfileDetails = {
@@ -13,6 +15,7 @@ export type ProfileDetails = {
   avatarUrl?: string;
   currentPassword: string;
   newPassword: string;
+  marketingOptIn: boolean;
 };
 
 export type AppNotification = {
@@ -78,10 +81,10 @@ export async function removeSavedRegistry(accessCode: string) {
   await request<{ ok: boolean }>(`/api/saved-lists/${encodeURIComponent(accessCode)}`, { method: 'DELETE' });
 }
 
-export async function createAccount(name: string, email: string, password: string) {
+export async function createAccount(name: string, email: string, password: string, marketingOptIn: boolean) {
   const response = await request<{ account: RecipientAccount }>('/api/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ name, email, password }),
+    body: JSON.stringify({ name, email, password, marketingOptIn }),
   });
   return response.account;
 }
@@ -92,6 +95,10 @@ export async function signIn(email: string, password: string) {
     body: JSON.stringify({ email, password }),
   });
   return response.account;
+}
+
+export async function resendVerificationEmail() {
+  await request<{ ok: boolean }>('/api/auth/resend-verification', { method: 'POST' });
 }
 
 export async function updateAccountProfile(account: RecipientAccount, details: ProfileDetails) {

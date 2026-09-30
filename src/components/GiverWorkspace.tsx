@@ -1,4 +1,4 @@
-import { ArrowRight, Bookmark, Copy, Gift as GiftIcon, Trash2 } from "lucide-react";
+import { ArrowRight, Bookmark, Copy, Gift as GiftIcon, Trash2, UsersRound } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { GiftFilterControls } from "./GiftFilterControls";
 import { DescriptionDialog } from "./DescriptionDialog";
@@ -31,20 +31,6 @@ type GiverWorkspaceProps = {
     onOpenSavedList: (registry: Registry) => void;
     onMessage: (personId: string, personName: string) => void;
 };
-
-function profileInitial(profile: GiftGiverProfile) {
-    return profile.displayName.trim().charAt(0).toUpperCase() || "?";
-}
-
-function ProfileBadge({ profile }: { profile: GiftGiverProfile }) {
-    return profile.avatarUrl ? (
-        <span className="avatar" title={profile.displayName}>
-            <img alt="" src={profile.avatarUrl} />
-        </span>
-    ) : (
-        <span className="avatar" title={profile.displayName || "Guest giver"}>{profileInitial(profile)}</span>
-    );
-}
 
 function OwnerBadge({ registry }: { registry: Registry }) {
     const initial = registry.ownerName.trim().charAt(0).toUpperCase() || "?";
@@ -189,7 +175,7 @@ export function GiverWorkspace({ registry, view, profile, accessCode, accessErro
                     <h2>{registry.listName}</h2>
                     <OwnerBadge registry={registry} />
                 </div>
-                <span className="giver-header-actions"><button className="text-button giver-switch-action" onClick={() => setUnlocked(false)} type="button">Pick another list</button>{canSave ? <span className="giver-management-actions"><button className="text-button" onClick={saved ? removeSavedList : saveList} type="button">{saved ? "Remove saved list" : "Save list"}</button><button className="text-button" onClick={onDuplicateList} type="button"><Copy size={15} /> Duplicate list</button></span> : null}</span>
+                <span className="giver-header-actions"><button className="text-button giver-switch-action" onClick={() => setUnlocked(false)} type="button">Pick another list</button>{canSave ? <span className="giver-management-actions"><button className={saved ? "text-button" : "primary-button save-list-button"} onClick={saved ? removeSavedList : saveList} type="button"><Bookmark size={16} />{saved ? "Remove saved list" : "Save this list"}</button><button className="text-button" onClick={onDuplicateList} type="button"><Copy size={15} /> Duplicate list</button></span> : null}</span>
             </div> : null}
             {!unlocked ? (
                 <div className="unlock-panel">
@@ -206,9 +192,6 @@ export function GiverWorkspace({ registry, view, profile, accessCode, accessErro
                 </div>
             ) : (
                 <>
-                    <div className="giver-summary">
-                        <span className="giver-identity">Signed in as <ProfileBadge profile={profile} /><strong>{profile.displayName || "Guest"}</strong></span>
-                    </div>
                     {registry.gifts.length === 0 ? (
                         <div className="empty-state"><GiftIcon size={24} /><h3>This list is empty</h3><p>This person hasn&apos;t added anything to their list yet.</p></div>
                     ) : (
@@ -217,7 +200,7 @@ export function GiverWorkspace({ registry, view, profile, accessCode, accessErro
                             <div className="gift-grid">
                                 {view?.gifts.map((gift) => (
                                     <article className="gift-card" key={gift.id}>
-                                        {gift.imageUrl ? <img alt={gift.title} className="gift-image" src={gift.imageUrl} /> : <div className="gift-image gift-image-placeholder"><GiftIcon size={24} /><span>No image</span></div>}
+                                        <div className="gift-image-wrap">{gift.imageUrl ? <img alt={gift.title} className="gift-image" src={gift.imageUrl} /> : <div className="gift-image gift-image-placeholder"><GiftIcon size={24} /><span>No image</span></div>}{gift.isListInList ? <span aria-label="Group gift" className="group-gift-badge" title="Group gift"><UsersRound size={16} /></span> : null}</div>
                                         <div className="gift-copy">
                                             <div className="gift-card-toolbar"><span>{gift.status ? <span className="gift-status" style={{ "--tag-color": gift.statusColor } as CSSProperties}>{gift.status}</span> : null}</span></div>
                                             <div className="gift-title-row"><div><h3>{gift.title}</h3>{gift.description ? <DescriptionDialog description={gift.description} maxLines={2} title={gift.title} /> : null}</div></div>

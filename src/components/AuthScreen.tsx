@@ -8,11 +8,13 @@ type AuthScreenProps = {
     authName: string;
     authEmail: string;
     authPassword: string;
+    marketingOptIn: boolean;
     authError: string;
     onModeChange: (mode: AuthMode) => void;
     onNameChange: (value: string) => void;
     onEmailChange: (value: string) => void;
     onPasswordChange: (value: string) => void;
+    onMarketingOptInChange: (value: boolean) => void;
     onSubmit: (event: FormEvent<HTMLFormElement>) => void;
     onOpenGiver: () => void;
 };
@@ -22,11 +24,13 @@ export function AuthScreen({
     authName,
     authEmail,
     authPassword,
+    marketingOptIn,
     authError,
     onModeChange,
     onNameChange,
     onEmailChange,
     onPasswordChange,
+    onMarketingOptInChange,
     onSubmit,
     onOpenGiver,
 }: AuthScreenProps) {
@@ -102,6 +106,7 @@ export function AuthScreen({
                             value={authEmail}
                         />
                     </label>
+                    {authMode === "create" ? <label className="checkbox-label"><input checked={marketingOptIn} onChange={(event) => onMarketingOptInChange(event.target.checked)} type="checkbox" /> Email me occasional HaulBoard news and promotions</label> : null}
                     <label>
                         Password
                         <input

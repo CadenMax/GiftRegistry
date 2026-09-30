@@ -9,6 +9,7 @@ type ProfileScreenProps = {
   onSignOut: () => void;
   onSave: (details: ProfileDetails) => Promise<void>;
   onDelete: (email: string) => Promise<void>;
+  onResendVerification: () => Promise<void>;
 };
 
 type CropOffset = { x: number; y: number };
@@ -37,9 +38,10 @@ function cropAvatar(source: string, region: CropRegion) {
   });
 }
 
-export function ProfileScreen({ account, onBack, onSignOut, onSave, onDelete }: ProfileScreenProps) {
+export function ProfileScreen({ account, onBack, onSignOut, onSave, onDelete, onResendVerification }: ProfileScreenProps) {
   const [name, setName] = useState(account.name);
   const [email, setEmail] = useState(account.email);
+  const [marketingOptIn, setMarketingOptIn] = useState(account.marketingOptIn);
   const [avatarUrl, setAvatarUrl] = useState(account.avatarUrl ?? "");
   const [avatarZoom, setAvatarZoom] = useState(1);
   const [cropSource, setCropSource] = useState("");
@@ -54,10 +56,18 @@ export function ProfileScreen({ account, onBack, onSignOut, onSave, onDelete }: 
   const [deleting, setDeleting] = useState(false);
   const [deleteEmail, setDeleteEmail] = useState("");
   const [deleteError, setDeleteError] = useState("");
+  const [verificationMessage, setVerificationMessage] = useState("");
+  const [verificationSending, setVerificationSending] = useState(false);
   const cropStageRef = useRef<HTMLDivElement>(null);
   const cropImageRef = useRef<HTMLImageElement>(null);
   const cropCircleRef = useRef<HTMLSpanElement>(null);
   const avatarZoomRef = useRef(avatarZoom);
+  const hasChanges = name !== account.name
+    || email !== account.email
+    || avatarUrl !== (account.avatarUrl ?? "")
+    || marketingOptIn !== account.marketingOptIn
+    || currentPassword.length > 0
+    || newPassword.length > 0;
 
   useEffect(() => {
     avatarZoomRef.current = avatarZoom;
@@ -101,7 +111,7 @@ export function ProfileScreen({ account, onBack, onSignOut, onSave, onDelete }: 
     setSaved(false);
     setSaving(true);
     try {
-      await onSave({ name, email, avatarUrl, currentPassword, newPassword });
+      await onSave({ name, email, avatarUrl, currentPassword, newPassword, marketingOptIn });
       setCurrentPassword("");
       setNewPassword("");
       setSaved(true);
@@ -177,6 +187,19 @@ export function ProfileScreen({ account, onBack, onSignOut, onSave, onDelete }: 
     }
   };
 
+  const resendVerification = async () => {
+    setVerificationMessage("");
+    setVerificationSending(true);
+    try {
+      await onResendVerification();
+      setVerificationMessage("Verification email sent.");
+    } catch (verificationError) {
+      setVerificationMessage(verificationError instanceof Error ? verificationError.message : "Unable to send the verification email.");
+    } finally {
+      setVerificationSending(false);
+    }
+  };
+
   return (
     <main className="app-shell">
       <header className="topbar" id="top">
@@ -203,6 +226,8 @@ export function ProfileScreen({ account, onBack, onSignOut, onSave, onDelete }: 
             Email address
             <input onChange={(event) => setEmail(event.target.value)} required type="email" value={email} />
           </label>
+          <label className="checkbox-label"><input checked={marketingOptIn} onChange={(event) => setMarketingOptIn(event.target.checked)} type="checkbox" /> Email me occasional HaulBoard news and promotions</label>
+          {!account.emailVerified ? <div className="verification-notice"><strong>Email not verified</strong><span>Verify your email to keep your account details confirmed.</span><button className="text-button" disabled={verificationSending} onClick={() => void resendVerification()} type="button">{verificationSending ? "Sending..." : "Send verification email"}</button>{verificationMessage ? <small>{verificationMessage}</small> : null}</div> : null}
           <div className="profile-password-heading"><span className="eyebrow">Change password</span><small>Leave blank to keep your current password.</small></div>
           <label>
             Current password
@@ -214,7 +239,7 @@ export function ProfileScreen({ account, onBack, onSignOut, onSave, onDelete }: 
           </label>
           {error ? <p className="error-message">{error}</p> : null}
           {saved ? <p className="profile-success">Saved.</p> : null}
-          <button className="primary-button" disabled={saving} type="submit">{saving ? "Saving..." : "Save profile"}</button>
+          {hasChanges ? <button className="primary-button" disabled={saving} type="submit">{saving ? "Saving..." : "Save profile"}</button> : null}
           <button className="secondary-button profile-logout" onClick={onSignOut} type="button"><LogOut size={16} /> Log out</button>
           <div className="account-danger-zone">
             <span className="eyebrow">Delete account</span>

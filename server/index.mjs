@@ -23,7 +23,8 @@ database.exec(`
   PRAGMA foreign_keys = ON;
   CREATE TABLE IF NOT EXISTS accounts (
     id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE,
-    avatar_url TEXT, password_hash TEXT NOT NULL, created_at TEXT NOT NULL
+    avatar_url TEXT, password_hash TEXT NOT NULL, email_verified INTEGER NOT NULL DEFAULT 0,
+    marketing_opt_in INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
   );
   CREATE TABLE IF NOT EXISTS registries (
     id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -32,6 +33,10 @@ database.exec(`
   CREATE TABLE IF NOT EXISTS sessions (
     token_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     expires_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS email_verification_tokens (
+    token_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    expires_at INTEGER NOT NULL, used_at TEXT
   );
   CREATE TABLE IF NOT EXISTS saved_lists (
     account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -108,6 +113,10 @@ for (const row of registryRows) {
 }
 database.exec('CREATE UNIQUE INDEX IF NOT EXISTS registries_access_code_unique ON registries(access_code)');
 
+const accountColumns = database.prepare('PRAGMA table_info(accounts)').all();
+if (!accountColumns.some((column) => column.name === 'email_verified')) database.exec('ALTER TABLE accounts ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0');
+if (!accountColumns.some((column) => column.name === 'marketing_opt_in')) database.exec('ALTER TABLE accounts ADD COLUMN marketing_opt_in INTEGER NOT NULL DEFAULT 0');
+
 for (const table of ['messages', 'guest_messages']) {
   const columns = database.prepare(`PRAGMA table_info(${table})`).all();
   if (!columns.some((column) => column.name === 'conversation_id')) {
@@ -116,15 +125,19 @@ for (const table of ['messages', 'guest_messages']) {
 }
 
 const statements = {
-  accountById: database.prepare('SELECT id, name, email, avatar_url AS avatarUrl FROM accounts WHERE id = ?'),
+  accountById: database.prepare('SELECT id, name, email, avatar_url AS avatarUrl, email_verified AS emailVerified, marketing_opt_in AS marketingOptIn FROM accounts WHERE id = ?'),
   accountByEmail: database.prepare('SELECT * FROM accounts WHERE email = ?'),
-  createAccount: database.prepare('INSERT INTO accounts (id, name, email, avatar_url, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)'),
-  updateAccount: database.prepare('UPDATE accounts SET name = ?, email = ?, avatar_url = ?, password_hash = ? WHERE id = ?'),
+  createAccount: database.prepare('INSERT INTO accounts (id, name, email, avatar_url, password_hash, email_verified, marketing_opt_in, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
+  updateAccount: database.prepare('UPDATE accounts SET name = ?, email = ?, avatar_url = ?, password_hash = ?, marketing_opt_in = ? WHERE id = ?'),
   registries: database.prepare('SELECT id, data FROM registries WHERE account_id = ? ORDER BY updated_at ASC'),
   replaceRegistry: database.prepare('INSERT INTO registries (id, account_id, data, access_code, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data, access_code = excluded.access_code, updated_at = excluded.updated_at'),
   deleteRegistry: database.prepare('DELETE FROM registries WHERE id = ? AND account_id = ?'),
   session: database.prepare('SELECT account_id, expires_at FROM sessions WHERE token_hash = ?'),
   createSession: database.prepare('INSERT INTO sessions (token_hash, account_id, expires_at) VALUES (?, ?, ?)'),
+  createVerificationToken: database.prepare('INSERT INTO email_verification_tokens (token_hash, account_id, expires_at) VALUES (?, ?, ?)'),
+  verificationToken: database.prepare('SELECT account_id FROM email_verification_tokens WHERE token_hash = ? AND used_at IS NULL AND expires_at >= ?'),
+  markEmailVerified: database.prepare('UPDATE accounts SET email_verified = 1 WHERE id = ?'),
+  useVerificationToken: database.prepare('UPDATE email_verification_tokens SET used_at = ? WHERE token_hash = ?'),
   deleteSession: database.prepare('DELETE FROM sessions WHERE token_hash = ?'),
   savedLists: database.prepare('SELECT registry_id, access_code FROM saved_lists WHERE account_id = ? ORDER BY created_at ASC'),
   saveList: database.prepare('INSERT OR IGNORE INTO saved_lists (account_id, registry_id, access_code, created_at) VALUES (?, ?, ?, ?)'),
@@ -253,7 +266,7 @@ function guestQuery(request) {
 
 function accountFromRow(row) {
   const avatarUrl = row.avatarUrl ?? row.avatar_url;
-  return { id: row.id, name: row.name, email: row.email, ...(avatarUrl ? { avatarUrl } : {}) };
+  return { id: row.id, name: row.name, email: row.email, emailVerified: Boolean(row.emailVerified ?? row.email_verified), marketingOptIn: Boolean(row.marketingOptIn ?? row.marketing_opt_in), ...(avatarUrl ? { avatarUrl } : {}) };
 }
 
 function readBody(request) {
@@ -324,7 +337,43 @@ function requireAccount(request, response) {
 function setSession(response, accountId) {
   const token = randomBytes(32).toString('hex');
   statements.createSession.run(tokenHash(token), accountId, Date.now() + 1000 * 60 * 60 * 24 * 30);
-  response.setHeader('Set-Cookie', `kindlist_session=${token}; HttpOnly; Path=/; SameSite=Lax${isProduction ? '; Secure' : ''}`);
+  response.setHeader('Set-Cookie', `kindlist_session=${token}; HttpOnly; Path=/; Max-Age=${60 * 60 * 24 * 30}; SameSite=Lax${isProduction ? '; Secure' : ''}`);
+}
+
+async function sendVerificationEmail({ account, token }) {
+  const baseUrl = process.env.PUBLIC_APP_URL ?? `http://localhost:${port}`;
+  const verificationUrl = `${baseUrl}/api/auth/verify?token=${encodeURIComponent(token)}`;
+  const emailName = account.name.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (resendApiKey) {
+    const from = process.env.EMAIL_FROM;
+    if (!from) throw new Error('EMAIL_FROM must be configured when RESEND_API_KEY is set.');
+    const providerResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from,
+        to: [account.email],
+        subject: 'Verify your HaulBoard email address',
+        text: `Hi ${account.name}, verify your HaulBoard email address here: ${verificationUrl}`,
+        html: `<p>Hi ${emailName},</p><p>Verify your HaulBoard email address to finish setting up your account.</p><p><a href="${verificationUrl}">Verify email address</a></p>`,
+      }),
+    });
+    if (!providerResponse.ok) throw new Error(`Resend returned ${providerResponse.status}.`);
+    return verificationUrl;
+  }
+  const webhookUrl = process.env.EMAIL_WEBHOOK_URL;
+  if (!webhookUrl) {
+    console.log(`Email verification link for ${account.email}: ${verificationUrl}`);
+    return verificationUrl;
+  }
+  const providerResponse = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'email_verification', to: account.email, name: account.name, verificationUrl }),
+  });
+  if (!providerResponse.ok) throw new Error(`Email provider returned ${providerResponse.status}.`);
+  return verificationUrl;
 }
 
 function findSharedRegistry(accessCode) {
@@ -405,7 +454,15 @@ async function handleApi(request, response, path) {
   if (request.method === 'GET' && path === '/api/session') {
     return json(response, 200, { account: authenticatedAccount(request) });
   }
-  if (await handleAuthApi({ request, response, path, readBody, statements, json, accountFromRow, passwordHash, passwordsMatch, sessionToken, tokenHash, setSession, randomUUID })) return;
+  if (request.method === 'GET' && path === '/api/auth/verify') {
+    const token = requestQuery(request).get('token') ?? '';
+    const verification = statements.verificationToken.get(tokenHash(token), Date.now());
+    if (!verification) return json(response, 400, { error: 'That verification link is invalid or has expired.' });
+    statements.markEmailVerified.run(verification.account_id);
+    statements.useVerificationToken.run(new Date().toISOString(), tokenHash(token));
+    return json(response, 200, { ok: true, message: 'Your email address is verified. You can return to HaulBoard.' });
+  }
+  if (await handleAuthApi({ request, response, path, readBody, statements, json, accountFromRow, passwordHash, passwordsMatch, sessionToken, tokenHash, setSession, randomUUID, sendVerificationEmail })) return;
 
   if (await handleSharedApi({ request, response, path, readBody, json, statements, findSharedRegistry, authenticatedAccount, publicRegistry, updateClaim, randomUUID })) return;
 
@@ -602,6 +659,13 @@ async function handleApi(request, response, path) {
 
   const account = requireAccount(request, response);
   if (!account) return;
+  if (request.method === 'POST' && path === '/api/auth/resend-verification') {
+    if (account.emailVerified) return json(response, 400, { error: 'Your email address is already verified.' });
+    const verificationToken = randomUUID() + randomUUID();
+    statements.createVerificationToken.run(tokenHash(verificationToken), account.id, Date.now() + 1000 * 60 * 60 * 24);
+    const verificationUrl = await sendVerificationEmail({ account, token: verificationToken });
+    return json(response, 200, { ok: true, ...(process.env.NODE_ENV !== 'production' ? { verificationUrl } : {}) });
+  }
   if (request.method === 'GET' && path === '/api/notifications') {
     return json(response, 200, { notifications: statements.notifications.all(account.id, account.id) });
   }
@@ -762,8 +826,9 @@ async function handleApi(request, response, path) {
       nextPasswordHash = passwordHash(String(details.newPassword));
     }
     const avatarUrl = String(details.avatarUrl ?? '');
-    statements.updateAccount.run(name, email, avatarUrl || null, nextPasswordHash, account.id);
-    return json(response, 200, { account: { id: account.id, name, email, ...(avatarUrl ? { avatarUrl } : {}) } });
+    const marketingOptIn = Boolean(details.marketingOptIn);
+    statements.updateAccount.run(name, email, avatarUrl || null, nextPasswordHash, marketingOptIn ? 1 : 0, account.id);
+    return json(response, 200, { account: { ...account, id: account.id, name, email, marketingOptIn, ...(avatarUrl ? { avatarUrl } : {}) } });
   }
   if (request.method === 'DELETE' && path === '/api/account') {
     const body = await readBody(request);

@@ -43,7 +43,12 @@ Example environment:
 NODE_ENV=production
 PORT=3001
 TRUST_PROXY=true
+PUBLIC_APP_URL=https://your-domain.example
+RESEND_API_KEY=re_...
+EMAIL_FROM=HaulBoard <noreply@your-domain.example>
 ```
+
+Email verification uses Resend directly from the Node server. Verify the sending domain in Resend before deploying, then add `PUBLIC_APP_URL`, `RESEND_API_KEY`, and `EMAIL_FROM` to the hosting provider's environment variables. Without `RESEND_API_KEY`, local development logs verification links instead of sending email. `EMAIL_WEBHOOK_URL` remains available for an alternate email delivery service.
 
 Set `TRUST_PROXY=true` only when the process is behind a trusted proxy that sets `X-Forwarded-For`. The server uses that address for authentication rate limiting. Terminate TLS at the proxy, forward requests to the Node process, and restrict direct access to the application port.
 

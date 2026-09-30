@@ -12,6 +12,7 @@ export async function handleAuthApi({
   tokenHash,
   setSession,
   randomUUID,
+  sendVerificationEmail,
 }) {
   if (request.method === 'POST' && (path === '/api/auth/register' || path === '/api/auth/login')) {
     const body = await readBody(request);
@@ -27,10 +28,13 @@ export async function handleAuthApi({
         json(response, 409, { error: 'An account with that email already exists.' });
         return true;
       }
-      const account = { id: randomUUID(), name: String(body.name).trim(), email };
-      statements.createAccount.run(account.id, account.name, account.email, null, passwordHash(password), new Date().toISOString());
+      const account = { id: randomUUID(), name: String(body.name).trim(), email, emailVerified: false, marketingOptIn: Boolean(body.marketingOptIn) };
+      statements.createAccount.run(account.id, account.name, account.email, null, passwordHash(password), 0, account.marketingOptIn ? 1 : 0, new Date().toISOString());
+      const verificationToken = randomUUID() + randomUUID();
+      statements.createVerificationToken.run(tokenHash(verificationToken), account.id, Date.now() + 1000 * 60 * 60 * 24);
       setSession(response, account.id);
-      json(response, 201, { account });
+      const verificationUrl = await sendVerificationEmail({ account, token: verificationToken });
+      json(response, 201, { account, verificationRequired: true, ...(process.env.NODE_ENV !== 'production' ? { verificationUrl } : {}) });
       return true;
     }
     if (!existing || !passwordsMatch(password, existing.password_hash)) {

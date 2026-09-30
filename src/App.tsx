@@ -53,6 +53,7 @@ import {
   signIn,
   updateSharedClaim,
   updateAccountProfile,
+  resendVerificationEmail,
   deleteAccount,
 } from "./lib/accountStore";
 import { clearSharedListUrl, getSharedListCode, setSharedListUrl } from "./lib/sharedListUrl";
@@ -147,6 +148,7 @@ function App() {
   const [authName, setAuthName] = useState("");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [authError, setAuthError] = useState("");
   const [listName, setListName] = useState("");
   const [listOccasion, setListOccasion] = useState("");
@@ -457,6 +459,7 @@ function App() {
               authName,
               authEmail,
               authPassword,
+              marketingOptIn,
             )
           : await signIn(authEmail, authPassword);
       const nextAccount = (await getStoredSession()) ?? authenticatedAccount;
@@ -578,7 +581,7 @@ function App() {
   };
 
   const removeSavedRegistryByCode = async (accessCodeToRemove: string) => {
-    await removeSavedRegistry(accessCodeToRemove);
+    if (account) await removeSavedRegistry(accessCodeToRemove);
     setSavedRegistries((current) => current.filter((item) => item.accessCode !== accessCodeToRemove));
   };
 
@@ -743,11 +746,13 @@ function App() {
         authName={authName}
         authEmail={authEmail}
         authPassword={authPassword}
+        marketingOptIn={marketingOptIn}
         authError={authError}
         onModeChange={setAuthMode}
         onNameChange={setAuthName}
         onEmailChange={setAuthEmail}
         onPasswordChange={setAuthPassword}
+        onMarketingOptInChange={setMarketingOptIn}
         onSubmit={handleAuthSubmit}
         onOpenGiver={() => setWorkspace("giver")}
       />
@@ -784,6 +789,7 @@ function App() {
         onSignOut={signOut}
         onSave={saveProfile}
         onDelete={removeAccount}
+        onResendVerification={resendVerificationEmail}
       />
     );
   }
@@ -817,6 +823,7 @@ function App() {
           )}
         </div>
       </header>
+      {account && !account.emailVerified ? <div className="email-verification-banner" role="status"><span>Please verify your email address.</span><button className="verification-banner-action" onClick={() => { clearSharedListUrl(); setSharedRegistry(null); setActiveSharedCode(""); setIsUnlocked(false); setAccessCode(""); setWorkspace("recipient"); setShowProfile(true); }} type="button">Open profile</button></div> : null}
       <nav className="role-tabs" aria-label="Workspace">
         <button className={workspace === "recipient" ? "active" : ""} onClick={openOwnLists} type="button">
           <BookOpen size={17} /> My list

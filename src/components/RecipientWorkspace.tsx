@@ -10,6 +10,7 @@ import {
     Plus,
     Share2,
     Trash2,
+    UsersRound,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import type { ChangeEvent, CSSProperties, Dispatch, FormEvent, SetStateAction } from "react";
@@ -188,7 +189,7 @@ export function RecipientWorkspace({
             ) : null}
             <div className="gift-grid">{recipientView.gifts.map((gift) => (
                 <article className="gift-card" key={gift.id}>
-                    {gift.imageUrl ? <img alt={gift.title} className="gift-image" src={gift.imageUrl} /> : <div className="gift-image gift-image-placeholder"><GiftIcon size={24} /><span>No image</span></div>}
+                    <div className="gift-image-wrap">{gift.imageUrl ? <img alt={gift.title} className="gift-image" src={gift.imageUrl} /> : <div className="gift-image gift-image-placeholder"><GiftIcon size={24} /><span>No image</span></div>}{gift.isListInList ? <span aria-label="Group gift" className="group-gift-badge" title="Group gift"><UsersRound size={16} /></span> : null}</div>
                     <div className="gift-copy"><div className="gift-card-toolbar"><span>{gift.status ? <span className="gift-status" style={{ "--tag-color": gift.statusColor } as CSSProperties}>{gift.status}</span> : null}</span><span className="gift-card-actions"><button aria-label={`Edit ${gift.title}`} className="delete-button" onClick={() => editGift(gift.id)} title="Edit gift" type="button"><Pencil size={16} /></button><button aria-label={`Remove ${gift.title}`} className="delete-button" onClick={() => deleteGift(gift.id)} title="Remove gift" type="button"><Trash2 size={16} /></button></span></div><div className="gift-title-row"><div><h3>{gift.title}</h3>{gift.description ? <DescriptionDialog description={gift.description} title={gift.title} /> : null}</div></div>{gift.dependenciesLabel ? <div className="gift-dependency">Needs: {gift.dependenciesLabel}</div> : null}{gift.linkUrl ? <a className="gift-link" href={normaliseLink(gift.linkUrl)} rel="noreferrer" target="_blank">Open link <ArrowRight size={15} /> </a> : null}<div className="gift-footer"><span className="gift-category" style={{ "--tag-color": gift.categoryColor } as CSSProperties}>{gift.categoryName}</span><strong className={`gift-price ${gift.priceLabel.length > 15 ? "gift-price-extra-long" : gift.priceLabel.length > 10 ? "gift-price-long" : ""}`}>{gift.priceLabel}</strong></div></div>
                 </article>
             ))}</div>
