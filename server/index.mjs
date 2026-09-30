@@ -340,7 +340,7 @@ function setSession(response, accountId) {
   response.setHeader('Set-Cookie', `kindlist_session=${token}; HttpOnly; Path=/; Max-Age=${60 * 60 * 24 * 30}; SameSite=Lax${isProduction ? '; Secure' : ''}`);
 }
 
-async function sendVerificationEmail({ account, token }) {
+async function sendVerificationEmail({ account, token, requireDelivery = false }) {
   const baseUrl = process.env.PUBLIC_APP_URL ?? `http://localhost:${port}`;
   const verificationUrl = `${baseUrl}/api/auth/verify?token=${encodeURIComponent(token)}`;
   const emailName = account.name.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
@@ -359,11 +359,32 @@ async function sendVerificationEmail({ account, token }) {
         html: `<p>Hi ${emailName},</p><p>Verify your HaulBoard email address to finish setting up your account.</p><p><a href="${verificationUrl}">Verify email address</a></p>`,
       }),
     });
-    if (!providerResponse.ok) throw new Error(`Resend returned ${providerResponse.status}.`);
+    const providerBody = await providerResponse.text();
+    let providerResult = null;
+    try { providerResult = providerBody ? JSON.parse(providerBody) : null; } catch { /* Resend should return JSON, but preserve the raw response in logs. */ }
+    if (!providerResponse.ok) {
+      console.error('Resend rejected verification email.', {
+        status: providerResponse.status,
+        response: providerResult ?? providerBody,
+      });
+      const error = new Error('The email provider could not accept the verification email.');
+      error.statusCode = 502;
+      throw error;
+    }
+    console.log('Resend accepted verification email.', {
+      to: account.email,
+      id: providerResult?.id ?? null,
+      status: providerResponse.status,
+    });
     return verificationUrl;
   }
   const webhookUrl = process.env.EMAIL_WEBHOOK_URL;
   if (!webhookUrl) {
+    if (requireDelivery) {
+      const error = new Error('Email delivery is not configured.');
+      error.statusCode = 503;
+      throw error;
+    }
     console.log(`Email verification link for ${account.email}: ${verificationUrl}`);
     return verificationUrl;
   }
@@ -663,7 +684,7 @@ async function handleApi(request, response, path) {
     if (account.emailVerified) return json(response, 400, { error: 'Your email address is already verified.' });
     const verificationToken = randomUUID() + randomUUID();
     statements.createVerificationToken.run(tokenHash(verificationToken), account.id, Date.now() + 1000 * 60 * 60 * 24);
-    const verificationUrl = await sendVerificationEmail({ account, token: verificationToken });
+    const verificationUrl = await sendVerificationEmail({ account, token: verificationToken, requireDelivery: true });
     return json(response, 200, { ok: true, ...(process.env.NODE_ENV !== 'production' ? { verificationUrl } : {}) });
   }
   if (request.method === 'GET' && path === '/api/notifications') {
