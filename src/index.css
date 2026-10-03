@@ -1,7 +1,7 @@
 :root {
   color: #402b28;
   background: linear-gradient(180deg, #fff8f3 0%, #fffdfc 100%);
-  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   font-synthesis: none;
   font-weight: 400;
   line-height: 1.5;
@@ -17,6 +17,7 @@
 body {
   margin: 0;
   min-width: 320px;
+  line-height: 1.5;
 }
 
 a {

@@ -1513,9 +1513,18 @@ a:focus-visible {
 }
 
 .gift-dependency {
-    color: var(--muted);
+    align-items: flex-start;
+    background: #fff2c9;
+    border-left: 3px solid #d99a2b;
+    border-radius: 0 5px 5px 0;
+    color: #765116;
+    display: flex;
     font-size: .73rem;
-    padding: 12px 0 3px;
+    font-weight: 800;
+    line-height: 1.35;
+    margin-bottom: 8px;
+    margin-top: 11px;
+    padding: 7px 9px;
 }
 
 .gift-link {
@@ -1973,9 +1982,9 @@ a:focus-visible {
     padding: 9px;
 }
 
-.dependency-alert {
+/* .dependency-alert {
     color: #a36d26;
-}
+} */
 
 .dependency-alert svg {
     vertical-align: middle;
@@ -2153,7 +2162,7 @@ footer span:first-child {
 
     .gift-grid {
         gap: 12px;
-        grid-template-columns: repeat(6, minmax(0, 1fr));
+        grid-template-columns: repeat(5, minmax(0, 1fr));
     }
 
     .gift-copy {
@@ -2161,14 +2170,23 @@ footer span:first-child {
     }
 
     .gift-title-row h3 {
-        font-size: .95rem;
+        font-size: 1rem;
     }
 
     .gift-copy p,
-    .gift-footer,
-    .gift-dependency,
     .gift-link {
-        font-size: .68rem;
+        font-size: .8rem;
+        line-height: 1.45;
+    }
+
+    .gift-footer,
+    .gift-footer span,
+    .gift-category,
+    .gift-dependency,
+    .claim-tag,
+    .gift-status {
+    font-size: .76rem;
+        line-height: 1.35;
     }
 }
 
@@ -2204,7 +2222,7 @@ footer span:first-child {
     .gift-copy p,
     .gift-description-trigger,
     .gift-description-preview {
-        font-size: .62rem;
+        font-size: .68rem;
         -webkit-line-clamp: 2;
     }
 
@@ -2213,7 +2231,7 @@ footer span:first-child {
     }
 
     .claim-tag {
-        font-size: .58rem;
+        font-size: .64rem;
         padding: 3px 5px;
     }
 
@@ -2224,17 +2242,19 @@ footer span:first-child {
     }
 
     .gift-footer span {
-        font-size: .62rem;
+        font-size: .68rem;
     }
 
     .gift-category {
-        font-size: .58rem;
+        font-size: .64rem;
         padding: 3px 6px;
     }
 
     .gift-dependency {
-        font-size: .6rem;
-        padding: 6px 0 2px;
+        font-size: .66rem;
+        margin-bottom: 5px;
+        margin-top: 7px;
+        padding: 5px 7px;
     }
 
     .gift-link {
@@ -2927,7 +2947,7 @@ footer span:first-child {
 }
 
 .access-prompt h2 {
-    font-family: Georgia, serif;
+    font-family: inherit;
     font-size: 1.55rem;
     font-weight: 400;
     margin: 0;
