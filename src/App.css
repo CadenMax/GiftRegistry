@@ -755,7 +755,8 @@
 }
 
 .section-heading h2,
-.giver-welcome h2 {
+.giver-welcome h2,
+.shared-list-identity h2 {
     color: var(--ink);
     font-family: Georgia, serif;
     font-size: 2.35rem;
@@ -1436,7 +1437,8 @@ a:focus-visible {
     border-radius: 4px;
     display: inline-block;
     font-size: .67rem;
-    font-weight: 800;
+    font-weight: 700;
+    letter-spacing: .015em;
     padding: 4px 7px;
     text-transform: capitalize;
 }
@@ -1489,7 +1491,8 @@ a:focus-visible {
     display: inline-block;
     font-size: .67rem;
     flex: 1 1 auto;
-    font-weight: 800;
+    font-weight: 700;
+    letter-spacing: .015em;
     min-width: 0;
     overflow: hidden;
     padding: 4px 8px;
@@ -1565,7 +1568,8 @@ a:focus-visible {
     color: color-mix(in srgb, var(--tag-color, #587050) 75%, #3f302b);
     display: inline-block;
     font-size: .67rem;
-    font-weight: 800;
+    font-weight: 700;
+    letter-spacing: .015em;
     padding: 4px 11px;
 }
 

@@ -188,7 +188,7 @@ export function GiverWorkspace({ registry, view, profile, accessCode, accessErro
                         {signedIn ? null : <label>Your name<input onChange={(event) => setProfile({ ...profile, displayName: event.target.value })} placeholder="Your name" value={profile.displayName} /></label>}
                         <button className="primary-button" type="submit">Open list <ArrowRight size={17} /></button>
                     </form>
-                    {accessError ? <p className="error-message" id="access-error">{accessError}</p> : <small>Need a code? Ask the list owner.</small>}
+                    {accessError ? <p className="error-message" id="access-error">{accessError}</p> : null}
                 </div>
             ) : (
                 <>

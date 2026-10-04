@@ -36,7 +36,7 @@ export function ListSetup({
             <br />
             <em>Add your gifts.</em>
           </h1>
-          <p>Set a name and optional occasion. Add gifts next.</p>
+          <p>Set a name and optional occasion.</p>
         </div>
         <form className="auth-card" onSubmit={onSubmit}>
           <h2>{mode === "edit" ? "Edit list details" : mode === "duplicate" ? "Duplicate list" : "Create a new list"}</h2>

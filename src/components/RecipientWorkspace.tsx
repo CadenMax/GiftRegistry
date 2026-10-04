@@ -123,7 +123,6 @@ export function RecipientWorkspace({
                 <div>
                     <span className="eyebrow">{registry.occasion ? registry.occasion : "Gift list"}</span>
                     <h2>{registry.listName}</h2>
-                    <p>Add gifts, organize them, and share the list.</p>
                     <div className="list-details-controls">
                         <select aria-label="Choose list" className="list-picker" onChange={(event) => onSelectList(event.target.value)} value={activeRegistryId}>
                             {registries.map((item) => <option key={item.id} value={item.id}>{item.listName}</option>)}
