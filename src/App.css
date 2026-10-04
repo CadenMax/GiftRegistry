@@ -1779,13 +1779,32 @@ a:focus-visible {
 
 .settings-toggle {
     align-items: center;
-    background: transparent;
-    border: 0;
+    background: #fff8f4;
+    border: 1px solid #e8b9ab;
+    border-radius: 7px;
     color: var(--coral-dark);
     display: inline-flex;
     font-size: .8rem;
+    font-weight: 700;
     gap: 6px;
-    padding: 0;
+    padding: 7px 10px;
+    transition: background .2s ease, border-color .2s ease, color .2s ease;
+}
+
+.settings-toggle:hover,
+.settings-toggle:focus-visible,
+.settings-toggle[aria-expanded="true"] {
+    background: #fce9e1;
+    border-color: var(--coral);
+    color: var(--coral-dark);
+}
+
+.settings-toggle svg {
+    transition: transform .2s ease;
+}
+
+.settings-toggle[aria-expanded="true"] svg {
+    transform: rotate(180deg);
 }
 
 .list-settings {
@@ -2001,7 +2020,7 @@ a:focus-visible {
 }
 
 .giver-workspace .gift-copy p {
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 21;
 }
 
 .giver-workspace .gift-copy {
@@ -2014,8 +2033,10 @@ a:focus-visible {
 
 .giver-workspace .gift-actions {
     align-items: stretch;
-    gap: 3px;
+    gap: 5px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-top: auto;
+    width: 100%;
 }
 
 .gift-actions button {
@@ -2027,27 +2048,42 @@ a:focus-visible {
 }
 
 .giver-workspace .gift-actions button {
+    background: var(--coral);
+    border: 1px solid var(--coral);
     border-radius: 5px;
+    color: #fff;
     font-size: .66rem;
     line-height: 1.15;
-    min-height: 28px;
-    padding: 6px 7px;
+    min-height: 24px;
+    padding: 4px 5px;
+    white-space: nowrap;
 }
 
 .giver-workspace .gift-actions button:first-child {
-    background: var(--coral);
-    border: 0;
-    color: #fff;
     justify-self: stretch;
-    min-height: 28px;
-    padding: 6px 7px;
     text-align: center;
 }
 
 .giver-workspace .gift-actions button:first-child:hover,
 .giver-workspace .gift-actions button:first-child:focus-visible {
     background: var(--coral-dark);
-    color: #fff;
+    border-color: var(--coral);
+}
+
+.giver-workspace .gift-actions button:nth-child(2) {
+    justify-self: stretch;
+}
+
+.giver-workspace .gift-actions button:nth-child(2):hover,
+.giver-workspace .gift-actions button:nth-child(2):focus-visible {
+    background: var(--coral-dark);
+    border-color: var(--coral);
+}
+
+@container (max-width: 230px) {
+    .giver-workspace .gift-actions {
+        grid-template-columns: 1fr;
+    }
 }
 
 .giver-workspace .gift-actions .claim-primary {

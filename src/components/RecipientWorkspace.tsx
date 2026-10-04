@@ -148,7 +148,7 @@ export function RecipientWorkspace({
                 <div><strong>${formatCurrency(totalValue, 0)}</strong><span>total</span></div>
                 <div><strong>{registry.categories.length}</strong><span>categories</span></div>
             </div>
-            <button className="settings-toggle" onClick={() => setShowListSettings((visible) => !visible)} type="button">
+            <button aria-expanded={showListSettings} className="settings-toggle" onClick={() => setShowListSettings((visible) => !visible)} type="button">
                 {showListSettings ? "Hide list settings" : "Manage categories and statuses"} <ChevronDown size={16} />
             </button>
             {showListSettings ? (
