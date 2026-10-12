@@ -7,7 +7,7 @@ import {
   UserRound,
   UsersRound,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import "./App.css";
 import { AuthScreen } from "./components/AuthScreen";
 import { GiverWorkspace } from "./components/GiverWorkspace.tsx";
@@ -164,6 +164,7 @@ function App() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [messages, setMessages] = useState<AppMessage[]>([]);
   const [messageContacts, setMessageContacts] = useState<MessageContact[]>([]);
+  const registrySaveQueue = useRef(Promise.resolve());
   const unreadMessageCount = notifications.filter((notification) => !notification.read_at && notification.type === "message").length;
   const unreadActivityCount = notifications.filter((notification) => !notification.read_at && notification.type !== "message").length;
   const giverRegistry = sharedRegistry ?? registry;
@@ -232,7 +233,11 @@ function App() {
   }, [sharedCode]);
 
   useEffect(() => {
-    if (account && sessionReady && registriesLoaded) void saveAccountRegistries(account, registries);
+    if (!account || !sessionReady || !registriesLoaded) return;
+    registrySaveQueue.current = registrySaveQueue.current
+      .catch(() => undefined)
+      .then(() => saveAccountRegistries(account, registries))
+      .catch(() => undefined);
   }, [account, registries, registriesLoaded, sessionReady]);
 
   useEffect(() => {

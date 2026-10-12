@@ -57,10 +57,12 @@ export async function handleSharedApi({
       ? body.purchasedItems.filter((item) => typeof item === 'string').map((item) => item.trim().slice(0, 240)).filter(Boolean).slice(0, 50)
       : undefined;
     const nextRegistry = updateClaim(shared.registry, body.giftId, profile, body.state, purchasedItems);
-    statements.updateRegistry.run(JSON.stringify(nextRegistry), new Date().toISOString(), shared.row.id, shared.row.account_id);
+    statements.updateRegistryClaims.run(JSON.stringify(nextRegistry.claims ?? []), new Date().toISOString(), shared.row.id, shared.row.account_id);
+    const latestRow = statements.sharedRegistries.all().find((row) => row.id === shared.row.id);
+    const latestRegistry = latestRow ? JSON.parse(latestRow.data) : nextRegistry;
     const claimChanged = JSON.stringify(previousClaims) !== JSON.stringify(nextRegistry.claims ?? []);
     if (claimChanged) {
-      const gift = nextRegistry.gifts.find((item) => item.id === body.giftId);
+      const gift = latestRegistry.gifts.find((item) => item.id === body.giftId);
       const actorName = profile.displayName || 'Someone';
       const verb = body.state === 'claimed'
         ? 'is buying'
@@ -88,7 +90,7 @@ export async function handleSharedApi({
         }
       }
     }
-    json(response, 200, { registry: publicRegistry(nextRegistry) });
+    json(response, 200, { registry: publicRegistry(latestRegistry) });
     return true;
   }
   return false;

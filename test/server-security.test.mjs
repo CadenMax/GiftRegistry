@@ -112,6 +112,42 @@ test('owner cannot access their own shared list and public responses strip guest
   assert.equal('giverToken' in guestList.body.registry.claims[0], false);
 });
 
+test('claim updates preserve every gift in the owner registry', async (t) => {
+  const server = await startServer();
+  t.after(() => server.stop());
+  const owner = await register(server, 'Owner', 'owner@example.com');
+  const registry = {
+    id: 'registry-test',
+    listName: 'Test list',
+    occasion: 'Birthday',
+    ownerName: 'Owner',
+    accessCode: 'TEST123',
+    categories: [],
+    statuses: [],
+    gifts: [
+      { id: 'gift-first', title: 'First gift', dependsOn: [], addedAt: new Date().toISOString() },
+      { id: 'gift-record-player', title: 'Record player', dependsOn: [], addedAt: new Date().toISOString() },
+    ],
+    claims: [],
+  };
+  await request(server, '/api/registries', {
+    method: 'PUT',
+    headers: { Cookie: owner.cookie },
+    body: JSON.stringify({ registries: [registry] }),
+  });
+
+  const claimed = await request(server, '/api/shared/TEST123/claims', {
+    method: 'PATCH',
+    body: JSON.stringify({
+      giftId: 'gift-first',
+      state: 'claimed',
+      profile: { id: 'guest-1', mode: 'guest', displayName: 'Guest', claimToken: 'guest-token' },
+    }),
+  });
+  assert.equal(claimed.response.status, 200);
+  assert.deepEqual(claimed.body.registry.gifts.map((gift) => gift.id), ['gift-first', 'gift-record-player']);
+});
+
 test('an empty save payload never deletes existing lists; only explicit deletion can', async (t) => {
   const server = await startServer();
   t.after(() => server.stop());

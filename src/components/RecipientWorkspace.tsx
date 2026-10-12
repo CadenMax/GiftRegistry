@@ -107,6 +107,7 @@ export function RecipientWorkspace({
     onDuplicateList,
 }: RecipientWorkspaceProps) {
     const [showExportDialog, setShowExportDialog] = useState(false);
+    const [pendingDeleteGift, setPendingDeleteGift] = useState<{ id: string; title: string } | null>(null);
 
     if (!hasOwnList) {
         return (
@@ -194,10 +195,23 @@ export function RecipientWorkspace({
             <div className="gift-grid">{recipientView.gifts.map((gift) => (
                 <article className="gift-card" key={gift.id}>
                     <div className="gift-image-wrap">{gift.imageUrl ? <img alt={gift.title} className="gift-image" src={gift.imageUrl} /> : <div className="gift-image gift-image-placeholder"><GiftIcon size={24} /><span>No image</span></div>}{gift.isListInList ? <span aria-label="Group gift" className="group-gift-badge" title="Group gift"><UsersRound size={16} /></span> : null}</div>
-                    <div className="gift-copy"><div className="gift-card-toolbar"><span>{gift.status ? <span className="gift-status" style={{ "--tag-color": gift.statusColor } as CSSProperties}>{gift.status}</span> : null}</span><span className="gift-card-actions"><button aria-label={`Edit ${gift.title}`} className="delete-button" onClick={() => editGift(gift.id)} title="Edit gift" type="button"><Pencil size={16} /></button><button aria-label={`Remove ${gift.title}`} className="delete-button" onClick={() => deleteGift(gift.id)} title="Remove gift" type="button"><Trash2 size={16} /></button></span></div><div className="gift-title-row"><div><h3>{gift.title}</h3>{gift.description ? <DescriptionDialog description={gift.description} title={gift.title} /> : null}</div></div>{gift.dependenciesLabel ? <div className="gift-dependency">Needs: {gift.dependenciesLabel}</div> : null}{gift.linkUrl ? <a className="gift-link" href={normaliseLink(gift.linkUrl)} rel="noreferrer" target="_blank">Open link <ArrowRight size={15} /> </a> : null}<div className="gift-footer"><span className="gift-category" style={{ "--tag-color": gift.categoryColor } as CSSProperties}>{gift.categoryName}</span><strong className={`gift-price ${gift.priceLabel.length > 15 ? "gift-price-extra-long" : gift.priceLabel.length > 10 ? "gift-price-long" : ""}`}>{gift.priceLabel}</strong></div></div>
+                    <div className="gift-copy"><div className="gift-card-toolbar"><span>{gift.status ? <span className="gift-status" style={{ "--tag-color": gift.statusColor } as CSSProperties}>{gift.status}</span> : null}</span><span className="gift-card-actions"><button aria-label={`Edit ${gift.title}`} className="delete-button" onClick={() => editGift(gift.id)} title="Edit gift" type="button"><Pencil size={16} /></button><button aria-label={`Remove ${gift.title}`} className="delete-button" onClick={() => setPendingDeleteGift({ id: gift.id, title: gift.title })} title="Remove gift" type="button"><Trash2 size={16} /></button></span></div><div className="gift-title-row"><div><h3>{gift.title}</h3>{gift.description ? <DescriptionDialog description={gift.description} title={gift.title} /> : null}</div></div>{gift.dependenciesLabel ? <div className="gift-dependency">Needs: {gift.dependenciesLabel}</div> : null}{gift.linkUrl ? <a className="gift-link" href={normaliseLink(gift.linkUrl)} rel="noreferrer" target="_blank">Open link <ArrowRight size={15} /> </a> : null}<div className="gift-footer"><span className="gift-category" style={{ "--tag-color": gift.categoryColor } as CSSProperties}>{gift.categoryName}</span><strong className={`gift-price ${gift.priceLabel.length > 15 ? "gift-price-extra-long" : gift.priceLabel.length > 10 ? "gift-price-long" : ""}`}>{gift.priceLabel}</strong></div></div>
                 </article>
             ))}</div>
             {showExportDialog ? <ExportDialog registry={registry} onClose={() => setShowExportDialog(false)} /> : null}
+            {pendingDeleteGift ? (
+                <div className="modal-backdrop" onClick={() => setPendingDeleteGift(null)} role="presentation">
+                    <section aria-labelledby="delete-gift-title" aria-modal="true" className="access-prompt" onClick={(event) => event.stopPropagation()} role="dialog">
+                        <span className="unlock-art"><Trash2 size={22} /></span>
+                        <h2 id="delete-gift-title">Remove this gift?</h2>
+                        <p><strong>{pendingDeleteGift.title}</strong> will be removed from your list. This cannot be undone.</p>
+                        <div className="access-prompt-actions">
+                            <button className="secondary-button" onClick={() => setPendingDeleteGift(null)} type="button">Keep gift</button>
+                            <button className="danger-button" onClick={() => { deleteGift(pendingDeleteGift.id); setPendingDeleteGift(null); }} type="button"><Trash2 size={16} /> Remove gift</button>
+                        </div>
+                    </section>
+                </div>
+            ) : null}
         </section>
     );
 }
