@@ -4,6 +4,7 @@ import {
     Check,
     ChevronDown,
     Copy,
+    Download,
     Gift as GiftIcon,
     Link as LinkIcon,
     Pencil,
@@ -18,6 +19,7 @@ import { GiftFilterControls } from "./GiftFilterControls";
 import { DescriptionDialog } from "./DescriptionDialog";
 import { ColorPalette } from "./ColorPalette";
 import { DependencySelector } from "./DependencySelector";
+import { ExportDialog } from "./ExportDialog";
 import { formatCurrency } from "../lib/projections";
 import type { GiftDraft, GiftFilters, RecipientView, Registry } from "../types";
 
@@ -104,6 +106,8 @@ export function RecipientWorkspace({
     onDeleteList,
     onDuplicateList,
 }: RecipientWorkspaceProps) {
+    const [showExportDialog, setShowExportDialog] = useState(false);
+
     if (!hasOwnList) {
         return (
             <section className="workspace recipient-workspace">
@@ -130,6 +134,7 @@ export function RecipientWorkspace({
                         <button aria-label="Edit list details" className="icon-button" onClick={onEditList} title="Edit list details" type="button"><Pencil size={15} /></button>
                         <button aria-label="Delete list" className="icon-button" onClick={onDeleteList} title="Delete list" type="button"><Trash2 size={15} /></button>
                         <button aria-label="Duplicate list" className="icon-button" onClick={onDuplicateList} title="Duplicate list" type="button"><Copy size={15} /></button>
+                        <button aria-label="Export list" className="icon-button" onClick={() => setShowExportDialog(true)} title="Export list" type="button"><Download size={15} /></button>
                         <button className="text-button" onClick={onNewList} type="button"><Plus size={15} /> New list</button>
                     </div>
                 </div>
@@ -192,6 +197,7 @@ export function RecipientWorkspace({
                     <div className="gift-copy"><div className="gift-card-toolbar"><span>{gift.status ? <span className="gift-status" style={{ "--tag-color": gift.statusColor } as CSSProperties}>{gift.status}</span> : null}</span><span className="gift-card-actions"><button aria-label={`Edit ${gift.title}`} className="delete-button" onClick={() => editGift(gift.id)} title="Edit gift" type="button"><Pencil size={16} /></button><button aria-label={`Remove ${gift.title}`} className="delete-button" onClick={() => deleteGift(gift.id)} title="Remove gift" type="button"><Trash2 size={16} /></button></span></div><div className="gift-title-row"><div><h3>{gift.title}</h3>{gift.description ? <DescriptionDialog description={gift.description} title={gift.title} /> : null}</div></div>{gift.dependenciesLabel ? <div className="gift-dependency">Needs: {gift.dependenciesLabel}</div> : null}{gift.linkUrl ? <a className="gift-link" href={normaliseLink(gift.linkUrl)} rel="noreferrer" target="_blank">Open link <ArrowRight size={15} /> </a> : null}<div className="gift-footer"><span className="gift-category" style={{ "--tag-color": gift.categoryColor } as CSSProperties}>{gift.categoryName}</span><strong className={`gift-price ${gift.priceLabel.length > 15 ? "gift-price-extra-long" : gift.priceLabel.length > 10 ? "gift-price-long" : ""}`}>{gift.priceLabel}</strong></div></div>
                 </article>
             ))}</div>
+            {showExportDialog ? <ExportDialog registry={registry} onClose={() => setShowExportDialog(false)} /> : null}
         </section>
     );
 }
