@@ -148,6 +148,43 @@ test('claim updates preserve every gift in the owner registry', async (t) => {
   assert.deepEqual(claimed.body.registry.gifts.map((gift) => gift.id), ['gift-first', 'gift-record-player']);
 });
 
+test('overlapping claim updates preserve the latest purchased items', async (t) => {
+  const server = await startServer();
+  t.after(() => server.stop());
+  const owner = await register(server, 'Owner', 'owner@example.com');
+  const registry = {
+    id: 'registry-test',
+    listName: 'Test list',
+    occasion: 'Birthday',
+    ownerName: 'Owner',
+    accessCode: 'TEST123',
+    categories: [],
+    statuses: [],
+    gifts: [{ id: 'gift-group', title: 'Group gift', isListInList: true, dependsOn: [], addedAt: new Date().toISOString() }],
+    claims: [],
+  };
+  await request(server, '/api/registries', {
+    method: 'PUT',
+    headers: { Cookie: owner.cookie },
+    body: JSON.stringify({ registries: [registry] }),
+  });
+
+  const profile = { id: 'guest-1', mode: 'guest', displayName: 'Guest', claimToken: 'guest-token' };
+  const firstUpdate = request(server, '/api/shared/TEST123/claims', {
+    method: 'PATCH',
+    body: JSON.stringify({ giftId: 'gift-group', state: 'claimed', purchasedItems: ['Record player'], profile }),
+  });
+  const secondUpdate = request(server, '/api/shared/TEST123/claims', {
+    method: 'PATCH',
+    body: JSON.stringify({ giftId: 'gift-group', state: 'claimed', purchasedItems: ['Record player', 'Speakers'], profile }),
+  });
+  const results = await Promise.all([firstUpdate, secondUpdate]);
+  assert.deepEqual(results.map((result) => result.response.status), [200, 200]);
+
+  const latest = await request(server, '/api/shared/TEST123');
+  assert.deepEqual(latest.body.registry.claims[0].purchasedItems, ['Record player', 'Speakers']);
+});
+
 test('an empty save payload never deletes existing lists; only explicit deletion can', async (t) => {
   const server = await startServer();
   t.after(() => server.stop());

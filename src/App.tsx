@@ -165,6 +165,7 @@ function App() {
   const [messages, setMessages] = useState<AppMessage[]>([]);
   const [messageContacts, setMessageContacts] = useState<MessageContact[]>([]);
   const registrySaveQueue = useRef(Promise.resolve());
+  const sharedClaimQueue = useRef(Promise.resolve());
   const unreadMessageCount = notifications.filter((notification) => !notification.read_at && notification.type === "message").length;
   const unreadActivityCount = notifications.filter((notification) => !notification.read_at && notification.type !== "message").length;
   const giverRegistry = sharedRegistry ?? registry;
@@ -343,8 +344,16 @@ function App() {
 
   const updateClaim = async (giftId: string, state: ClaimState | null, purchasedItems?: string[]) => {
     if (sharedRegistry && activeSharedCode) {
-      const nextRegistry = await updateSharedClaim(activeSharedCode, giftId, giftGiverProfile, state, purchasedItems);
-      setSharedRegistry(nextRegistry);
+      const claimCode = activeSharedCode;
+      const claimProfile = giftGiverProfile;
+      const claimUpdate = sharedClaimQueue.current
+        .catch(() => undefined)
+        .then(async () => {
+          const nextRegistry = await updateSharedClaim(claimCode, giftId, claimProfile, state, purchasedItems);
+          setSharedRegistry(nextRegistry);
+        });
+      sharedClaimQueue.current = claimUpdate.catch(() => undefined);
+      await claimUpdate;
       return;
     }
     setRegistry((current) => ({

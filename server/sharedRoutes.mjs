@@ -15,7 +15,7 @@ export async function handleSharedApi({
   if (!sharedMatch) return false;
 
   const accessCode = decodeURIComponent(sharedMatch[1]).trim().toUpperCase();
-  const shared = findSharedRegistry(accessCode);
+  let shared = findSharedRegistry(accessCode);
   if (!shared) {
     json(response, 404, { error: 'That shared list could not be found.' });
     return true;
@@ -34,6 +34,11 @@ export async function handleSharedApi({
   }
   if (request.method === 'PATCH' && path.endsWith('/claims')) {
     const body = await readBody(request);
+    shared = findSharedRegistry(accessCode);
+    if (!shared) {
+      json(response, 404, { error: 'That shared list could not be found.' });
+      return true;
+    }
     const giftExists = shared.registry.gifts.some((gift) => gift.id === body.giftId);
     if (!giftExists || !body.profile || (body.state !== null && !['considering', 'claimed'].includes(body.state))) {
       json(response, 400, { error: 'That claim is not valid.' });
